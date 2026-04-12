@@ -26,18 +26,18 @@ function sendSNNCommand(tabId: number, enabled: boolean) {
   chrome?.tabs?.sendMessage(tabId, { type: enabled ? "SNN_ON" : "SNN_OFF" });
 }
 
-async function queryMetrics(tabId: number): Promise<{ wasteScore: number; heapRecovered: number }> {
+async function queryMetrics(tabId: number): Promise<{ wasteScore: number; heapRecovered: number; totalPurged: number; wasteCount: number; gammaBurst: boolean }> {
   return new Promise((resolve) => {
     try {
       chrome?.tabs?.sendMessage(tabId, { type: "GET_METRICS" }, (resp) => {
         if (chrome?.runtime?.lastError || !resp) {
-          resolve({ wasteScore: 0, heapRecovered: 0 });
+          resolve({ wasteScore: 0, heapRecovered: 0, totalPurged: 0, wasteCount: 0, gammaBurst: false });
         } else {
           resolve(resp);
         }
       });
     } catch {
-      resolve({ wasteScore: 0, heapRecovered: 0 });
+      resolve({ wasteScore: 0, heapRecovered: 0, totalPurged: 0, wasteCount: 0, gammaBurst: false });
     }
   });
 }
@@ -46,6 +46,8 @@ export default function App() {
   const [snnActive, setSnnActive] = useState(false);
   const [wasteScore, setWasteScore] = useState(72);
   const [heapRecovered, setHeapRecovered] = useState(0);
+  const [totalPurged, setTotalPurged] = useState(0);
+  const [wasteCount, setWasteCount] = useState(0);
   const [pressure, setPressure] = useState(0);
   const [gammaBurst, setGammaBurst] = useState(false);
   const [agents, setAgents] = useState<Agent[]>(AGENTS);
@@ -115,12 +117,13 @@ export default function App() {
         setWasteScore((w) => Math.max(w - 0.5 * (shouldGamma ? 1.5 : 1), 0));
       }
 
-      if (tabId && frameRef.current % 4 === 0) {
+      if (tabId && frameRef.current % 3 === 0) {
         const metrics = await queryMetrics(tabId);
-        if (metrics.wasteScore > 0) {
-          setWasteScore(metrics.wasteScore);
-          setHeapRecovered(metrics.heapRecovered);
-        }
+        setWasteScore(metrics.wasteScore || 0);
+        setHeapRecovered(metrics.heapRecovered || 0);
+        setTotalPurged(metrics.totalPurged || 0);
+        setWasteCount(metrics.wasteCount || 0);
+        if (metrics.gammaBurst !== undefined) setGammaBurst(metrics.gammaBurst);
       }
     }, ms);
 
@@ -234,10 +237,10 @@ export default function App() {
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 9 }}>
           <span style={{ color: "#4A8060" }}>
-            ∆ PASCAL: <span style={{ color: pressure > VIGESIMAL_WEIGHT ? "#C89600" : "#00C896" }}>{pressure}</span>
+            WASTE NODES: <span style={{ color: wasteCount > 10 ? "#E05A3A" : "#00C896" }}>{wasteCount}</span>
           </span>
           <span style={{ color: "#4A8060" }}>
-            FASE: <span style={{ color: gammaBurst ? "#C89600" : "#00C896" }}>{gammaBurst ? "40Hz GAMMA" : "7.83Hz"}</span>
+            FASE: <span style={{ color: gammaBurst ? "#C89600" : "#00C896" }}>{gammaBurst ? "40Hz ⚡" : "7.83Hz"}</span>
           </span>
         </div>
       </div>
@@ -295,26 +298,29 @@ export default function App() {
       </div>
 
       <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(0,200,150,0.15)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-          <div>
-            <div style={{ fontSize: 9, letterSpacing: 2, color: "#4A8060" }}>HEAP RECUPERADO</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "#00C896" }}>
-              {heapRecovered.toFixed(1)}
-              <span style={{ fontSize: 10, color: "#4A8060" }}>MB</span>
+        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+          <div style={{ flex: 1, background: "#080F09", borderRadius: 3, padding: "6px 8px" }}>
+            <div style={{ fontSize: 8, letterSpacing: 1, color: "#4A8060", marginBottom: 2 }}>HEAP RECUPERADO</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#00C896" }}>
+              {heapRecovered.toFixed(1)}<span style={{ fontSize: 9, color: "#4A8060" }}>MB</span>
             </div>
           </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 9, letterSpacing: 2, color: "#4A8060" }}>STBP</div>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: pressure > VIGESIMAL_WEIGHT ? "#C89600" : "#00C896",
-              }}
-            >
-              {pressure > VIGESIMAL_WEIGHT ? "AGRESIVO" : "NOMINAL"}
+          <div style={{ flex: 1, background: "#080F09", borderRadius: 3, padding: "6px 8px" }}>
+            <div style={{ fontSize: 8, letterSpacing: 1, color: "#4A8060", marginBottom: 2 }}>NODOS PURGADOS</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#E05A3A" }}>
+              {totalPurged}<span style={{ fontSize: 9, color: "#4A8060" }}> nodos</span>
             </div>
           </div>
+          <div style={{ flex: 1, background: "#080F09", borderRadius: 3, padding: "6px 8px" }}>
+            <div style={{ fontSize: 8, letterSpacing: 1, color: "#4A8060", marginBottom: 2 }}>EN COLA</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: wasteCount > 10 ? "#C89600" : "#00C896" }}>
+              {wasteCount}<span style={{ fontSize: 9, color: "#4A8060" }}> waste</span>
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#4A8060", marginBottom: 4 }}>
+          <span>STBP: <span style={{ color: pressure > VIGESIMAL_WEIGHT ? "#C89600" : "#00C896" }}>{pressure > VIGESIMAL_WEIGHT ? "AGRESIVO" : "NOMINAL"}</span></span>
+          <span>∆ PASCAL: <span style={{ color: pressure > VIGESIMAL_WEIGHT ? "#C89600" : "#00C896" }}>{pressure}</span></span>
         </div>
         {gammaBurst && (
           <div
