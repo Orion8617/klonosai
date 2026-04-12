@@ -12,14 +12,15 @@ import { useColors } from "@/hooks/useColors";
 
 interface BrowserHeaderProps {
   snnActive: boolean;
+  gammaBurst: boolean;
   onToggleSNN: () => void;
 }
 
-export function BrowserHeader({ snnActive, onToggleSNN }: BrowserHeaderProps) {
+export function BrowserHeader({ snnActive, gammaBurst, onToggleSNN }: BrowserHeaderProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const glowAnim = useRef(new Animated.Value(0)).current;
+  const gammaFlash = useRef(new Animated.Value(0)).current;
 
   const useNative = Platform.OS !== "web";
 
@@ -31,38 +32,64 @@ export function BrowserHeader({ snnActive, onToggleSNN }: BrowserHeaderProps) {
           Animated.timing(pulseAnim, { toValue: 1, duration: 500, useNativeDriver: useNative }),
         ])
       );
-      const glow = Animated.loop(
-        Animated.sequence([
-          Animated.timing(glowAnim, { toValue: 1, duration: 800, useNativeDriver: useNative }),
-          Animated.timing(glowAnim, { toValue: 0.3, duration: 800, useNativeDriver: useNative }),
-        ])
-      );
       pulse.start();
-      glow.start();
-      return () => {
-        pulse.stop();
-        glow.stop();
-      };
+      return () => pulse.stop();
     } else {
       pulseAnim.setValue(1);
-      glowAnim.setValue(0);
     }
   }, [snnActive]);
 
+  // Gamma burst flicker — más agresivo
+  useEffect(() => {
+    if (gammaBurst) {
+      const flicker = Animated.loop(
+        Animated.sequence([
+          Animated.timing(gammaFlash, { toValue: 1, duration: 60, useNativeDriver: useNative }),
+          Animated.timing(gammaFlash, { toValue: 0, duration: 60, useNativeDriver: useNative }),
+          Animated.timing(gammaFlash, { toValue: 0.7, duration: 40, useNativeDriver: useNative }),
+          Animated.timing(gammaFlash, { toValue: 0, duration: 100, useNativeDriver: useNative }),
+        ])
+      );
+      flicker.start();
+      return () => flicker.stop();
+    } else {
+      gammaFlash.setValue(0);
+    }
+  }, [gammaBurst]);
+
   const topPadding = Platform.OS === "web" ? 67 : insets.top;
 
+  const btnColor = gammaBurst
+    ? colors.gold
+    : snnActive
+    ? colors.primary
+    : colors.waste;
+
+  const btnLabel = gammaBurst
+    ? "GAMMA: 40Hz"
+    : snnActive
+    ? "SNN: ON"
+    : "SNN: OFF";
+
   return (
-    <View style={[styles.container, { paddingTop: topPadding, backgroundColor: colors.card }]}>
+    <View style={[styles.container, { paddingTop: topPadding, backgroundColor: colors.card, borderBottomColor: gammaBurst ? colors.gold : colors.border }]}>
+      {/* Gamma burst barra superior */}
+      {gammaBurst && (
+        <Animated.View
+          style={[styles.gammaBanner, { backgroundColor: colors.gold, opacity: gammaFlash }]}
+        />
+      )}
+
       <View style={styles.inner}>
-        <View style={[styles.badge, { borderColor: colors.primary }]}>
-          <Text style={[styles.badgeText, { color: colors.primary, fontFamily: "SpaceMono_400Regular" }]}>K5</Text>
+        <View style={[styles.badge, { borderColor: gammaBurst ? colors.gold : colors.primary }]}>
+          <Text style={[styles.badgeText, { color: gammaBurst ? colors.gold : colors.primary, fontFamily: "SpaceMono_400Regular" }]}>K5</Text>
         </View>
 
         <View style={[styles.urlBar, { borderColor: colors.border, backgroundColor: colors.background }]}>
           <Text style={[styles.urlProtocol, { color: colors.mutedForeground, fontFamily: "SpaceMono_400Regular" }]}>
             https://
           </Text>
-          <Text style={[styles.urlText, { color: colors.primary, fontFamily: "SpaceMono_400Regular" }]} numberOfLines={1}>
+          <Text style={[styles.urlText, { color: gammaBurst ? colors.gold : colors.primary, fontFamily: "SpaceMono_400Regular" }]} numberOfLines={1}>
             klonos-target-site.com
           </Text>
         </View>
@@ -70,17 +97,11 @@ export function BrowserHeader({ snnActive, onToggleSNN }: BrowserHeaderProps) {
         <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
           <TouchableOpacity
             onPress={onToggleSNN}
-            style={[
-              styles.snnBtn,
-              {
-                backgroundColor: snnActive ? colors.primary : colors.waste,
-                borderColor: snnActive ? colors.primary : colors.waste,
-              },
-            ]}
+            style={[styles.snnBtn, { backgroundColor: btnColor, borderColor: btnColor }]}
             activeOpacity={0.8}
           >
             <Text style={[styles.snnText, { fontFamily: "SpaceMono_400Regular" }]}>
-              {snnActive ? "SNN: ON" : "SNN: OFF"}
+              {btnLabel}
             </Text>
           </TouchableOpacity>
         </Animated.View>
@@ -92,6 +113,13 @@ export function BrowserHeader({ snnActive, onToggleSNN }: BrowserHeaderProps) {
 const styles = StyleSheet.create({
   container: {
     borderBottomWidth: 1,
+  },
+  gammaBanner: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
   },
   inner: {
     flexDirection: "row",

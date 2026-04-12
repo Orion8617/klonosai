@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from "react";
-import { View, Text, StyleSheet, Animated } from "react-native";
+import { View, Text, StyleSheet, Animated, Platform } from "react-native";
 import { useColors } from "@/hooks/useColors";
 
 export interface DOMNodeData {

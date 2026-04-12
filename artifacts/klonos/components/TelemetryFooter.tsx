@@ -12,54 +12,93 @@ import { useColors } from "@/hooks/useColors";
 
 interface TelemetryFooterProps {
   wasteScore: number;
+  wastePressure: number;
   ramRecovered: number;
   phaseLock: boolean;
+  gammaBurst: boolean;
   onInjectWaste: () => void;
   onExportPWA: () => void;
 }
 
 export function TelemetryFooter({
   wasteScore,
+  wastePressure,
   ramRecovered,
   phaseLock,
+  gammaBurst,
   onInjectWaste,
   onExportPWA,
 }: TelemetryFooterProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const glitchAnim = useRef(new Animated.Value(1)).current;
+  const gammaAnim = useRef(new Animated.Value(0)).current;
 
   const useNative = Platform.OS !== "web";
 
+  // Pulsador del Phase-Lock / Gamma label
   useEffect(() => {
+    const speed = gammaBurst ? 60 : phaseLock ? 150 : 600;
     const glitch = Animated.loop(
       Animated.sequence([
-        Animated.timing(glitchAnim, { toValue: 1, duration: phaseLock ? 300 : 800, useNativeDriver: useNative }),
-        Animated.timing(glitchAnim, { toValue: 0.35, duration: phaseLock ? 100 : 400, useNativeDriver: useNative }),
-        Animated.timing(glitchAnim, { toValue: 1, duration: phaseLock ? 200 : 600, useNativeDriver: useNative }),
+        Animated.timing(glitchAnim, { toValue: 1, duration: speed * 2, useNativeDriver: useNative }),
+        Animated.timing(glitchAnim, { toValue: 0.25, duration: speed, useNativeDriver: useNative }),
+        Animated.timing(glitchAnim, { toValue: 1, duration: speed, useNativeDriver: useNative }),
       ])
     );
     glitch.start();
     return () => glitch.stop();
-  }, [phaseLock]);
+  }, [phaseLock, gammaBurst]);
 
-  const scoreColor = wasteScore > 50 ? colors.waste : colors.primary;
+  // Gamma burst glow en el borde superior del footer
+  useEffect(() => {
+    if (gammaBurst) {
+      const glow = Animated.loop(
+        Animated.sequence([
+          Animated.timing(gammaAnim, { toValue: 1, duration: 200, useNativeDriver: useNative }),
+          Animated.timing(gammaAnim, { toValue: 0.2, duration: 200, useNativeDriver: useNative }),
+        ])
+      );
+      glow.start();
+      return () => glow.stop();
+    } else {
+      gammaAnim.setValue(0);
+    }
+  }, [gammaBurst]);
+
+  const scoreColor = gammaBurst
+    ? colors.gold
+    : wasteScore > 50
+    ? colors.waste
+    : colors.primary;
+
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const freqLabel = gammaBurst ? "GAMMA BURST: 40Hz" : "PHASE-LOCK: 7.83Hz";
+  const freqColor = gammaBurst ? colors.gold : colors.primary;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.muted, borderTopColor: colors.border, paddingBottom: bottomPad }]}>
+    <View style={[styles.container, {
+      backgroundColor: colors.muted,
+      borderTopColor: gammaBurst ? colors.gold : colors.border,
+      paddingBottom: bottomPad,
+    }]}>
+      {/* Gamma burst top glow bar */}
+      {gammaBurst && (
+        <Animated.View style={[styles.gammaBar, { backgroundColor: colors.gold, opacity: gammaAnim }]} />
+      )}
+
       <View style={styles.topRow}>
         <Text style={[styles.swarmLabel, { color: colors.mutedForeground, fontFamily: "SpaceMono_400Regular" }]}>
           SNN HOUSEKEEPER SWARM
         </Text>
-        <Animated.Text style={[styles.phaseLock, { color: colors.primary, opacity: glitchAnim, fontFamily: "SpaceMono_400Regular" }]}>
-          PHASE-LOCK: 7.83Hz
+        <Animated.Text style={[styles.phaseLock, { color: freqColor, opacity: glitchAnim, fontFamily: "SpaceMono_400Regular" }]}>
+          {freqLabel}
         </Animated.Text>
       </View>
 
       <View style={styles.grid}>
-        {/* Waste Score */}
-        <View style={[styles.metric, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {/* Waste Score + Pascal Pressure */}
+        <View style={[styles.metric, { backgroundColor: colors.card, borderColor: gammaBurst ? colors.gold : colors.border }]}>
           <Text style={[styles.metricLabel, { color: colors.mutedForeground, fontFamily: "SpaceMono_400Regular" }]}>
             WASTE SCORE
           </Text>
@@ -72,13 +111,13 @@ export function TelemetryFooter({
             </Text>
           </View>
           <View style={[styles.progressTrack, { backgroundColor: "#000" }]}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${wasteScore}%`, backgroundColor: scoreColor },
-              ]}
-            />
+            <View style={[styles.progressFill, { width: `${wasteScore}%`, backgroundColor: scoreColor }]} />
           </View>
+          {/* Pascal deviation pressure */}
+          <Text style={[styles.pressureLabel, { color: `${scoreColor}90`, fontFamily: "SpaceMono_400Regular" }]}>
+            Δ PASCAL: {wastePressure}
+            {wastePressure > 50 ? " ⚡STBP" : ""}
+          </Text>
         </View>
 
         {/* Heap Recovered */}
@@ -96,6 +135,9 @@ export function TelemetryFooter({
           </View>
           <Text style={[styles.quantLabel, { color: colors.primary, fontFamily: "SpaceMono_400Regular" }]}>
             Vigesimal Quantization
+          </Text>
+          <Text style={[styles.quantLabel, { color: colors.mutedForeground, fontFamily: "SpaceMono_400Regular" }]}>
+            STBP: {wastePressure > 50 ? "AGRESIVO" : "NOMINAL"}
           </Text>
         </View>
 
@@ -134,6 +176,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 8,
   },
+  gammaBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+  },
   topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -158,12 +207,12 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     padding: 8,
     justifyContent: "space-between",
-    minHeight: 90,
+    minHeight: 96,
   },
   metricLabel: {
     fontSize: 8,
     letterSpacing: 1,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   scoreRow: {
     flexDirection: "row",
@@ -171,28 +220,33 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   scoreValue: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "700",
-    lineHeight: 32,
+    lineHeight: 30,
   },
   heapValue: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
-    lineHeight: 28,
+    lineHeight: 26,
   },
   scoreMax: {
     fontSize: 11,
-    marginBottom: 3,
+    marginBottom: 2,
   },
   progressTrack: {
     height: 3,
     borderRadius: 2,
-    marginTop: 4,
+    marginTop: 3,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
     borderRadius: 2,
+  },
+  pressureLabel: {
+    fontSize: 8,
+    letterSpacing: 0.5,
+    marginTop: 3,
   },
   quantLabel: {
     fontSize: 8,
