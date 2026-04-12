@@ -1,8 +1,13 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "oM0imzsBCx3_-Ca8rcu7v"
 uri = "file://artifacts/klonos/assets/images/icon.png"
 type = "image"
 title = "klonos app icon"
+
+[[outputs]]
+id = "7fPrEvMYZYK6PVA2KtCJi"
+uri = "file://artifacts/klonos-ext/klonos-layer5-extension.zip"
+type = "unspecified"
+title = "KlonOS Layer 5.0 — Chrome Extension"

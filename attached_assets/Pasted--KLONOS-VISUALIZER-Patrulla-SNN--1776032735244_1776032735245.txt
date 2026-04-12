@@ -1,0 +1,59 @@
+// ═══════════════════════════════════════════════════════
+//  KLONOS VISUALIZER — "Patrulla SNN"
+//  Inyección DOM: Juan José Salgado Fuentes
+// ═══════════════════════════════════════════════════════
+
+// 1. Crear el contenedor de la patrulla (AR Layer)
+const patrolLayer = document.createElement('div');
+patrolLayer.style = "position:fixed; top:0; left:0; width:100vw; height:100vh; pointer-events:none; z-index:999999;";
+document.body.appendChild(patrolLayer);
+
+// 2. Crear un soldado SVG (ultra-ligero, estilo Matrix)
+function createSoldierSVG(color) {
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("viewBox", "0 0 10 10");
+    svg.style = `position:absolute; width:12px; height:12px; fill:${color}; transition: all 0.2s ease-out;`;
+    
+    const hex = document.createElementNS(svgNS, "polygon");
+    hex.setAttribute("points", "5,0 9.33,2.5 9.33,7.5 5,10 0.67,7.5 0.67,2.5");
+    svg.appendChild(hex);
+    
+    return svg;
+}
+
+// 3. Inicializar la cuadrilla (4 soldados)
+const swarm = [
+    { name: 'Podador',   svg: createSoldierSVG('#00C896'), x: 0, y: 0 },
+    { name: 'Drenador',  svg: createSoldierSVG('#0096C8'), x: 0, y: 0 },
+    { name: 'Regulador', svg: createSoldierSVG('#C89600'), x: 0, y: 0 },
+    { name: 'Schumann',  svg: createSoldierSVG('#C8C8C8'), x: 0, y: 0 }
+];
+
+swarm.forEach(s => patrolLayer.appendChild(s.svg));
+
+// 4. Bucle de movimiento SNN (Sincronizado a 7.83Hz)
+function walkSwarm(snnDecisions) {
+    swarm.forEach((soldier, index) => {
+        // La SNN en Rust decide el próximo 'pueblo de basura' a visitar
+        const target = snnDecisions.targets[index]; // {x, y, waste_type}
+        
+        // Mover el SVG a la nueva posición (camina metal a metal)
+        soldier.x = target.x;
+        soldier.y = target.y;
+        soldier.svg.style.transform = `translate(${soldier.x}px, ${soldier.y}px)`;
+        
+        // Si hay un spike de limpieza, el soldado brilla y desintegra visualmente
+        if (target.cleanup_spike) {
+            soldier.svg.style.filter = "drop-shadow(0 0 5px #00C896) brightness(2)";
+            
+            // Opcional: Animar la desintegración del nodo DOM real debajo
+            // const wasteNode = document.elementFromPoint(soldier.x, soldier.y);
+            // applyMatrixDesintegrationEffect(wasteNode); 
+            
+            setTimeout(() => {
+                soldier.svg.style.filter = "none";
+            }, 100);
+        }
+    });
+}

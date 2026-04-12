@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "KlonOS Layer 5.0",
+  "version": "1.0.0",
+  "description": "Sovereign SNN Housekeeper — Patrulla DOM hexagonal. Juan José Salgado Fuentes.",
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    },
+    "default_title": "KlonOS Layer 5.0 — SNN Housekeeper"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content_script.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}
