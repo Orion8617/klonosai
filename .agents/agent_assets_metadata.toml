@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "oM0imzsBCx3_-Ca8rcu7v"
+uri = "file://artifacts/klonos/assets/images/icon.png"
+type = "image"
+title = "klonos app icon"

@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "KlonOS Layer 5.0"
+version = "1.0.0"
+id = "artifacts/klonos"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 24651
+
+[services.development]
+run = "pnpm --filter @workspace/klonos run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/klonos", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/klonos", "run", "serve" ]
+
+[services.env]
+PORT = "24651"
+BASE_PATH = "/"
