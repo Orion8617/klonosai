@@ -768,59 +768,84 @@ export default function App() {
         <div className="wrap">
           <Rv cls="sh" style={{ textAlign: "center", maxWidth: 560, margin: "0 auto 72px" }}>
             <div className="sb">Pricing</div>
-            <h2 className="stitle display">Honest tiers.<br /><em>Real differences.</em></h2>
-            <p className="ssub">Each tier has genuine technical differentiation — more neurons, more learning mechanisms — not arbitrary feature locks.</p>
+            <h2 className="stitle display">Kill your ping.<br /><em>Choose your plan.</em></h2>
+            <p className="ssub">Solo player, squad grinder, or gaming café owner — there's a plan built for you. No tricks, no confusion.</p>
           </Rv>
+
           <div className="pgrid">
+
+            {/* ── FREE ── */}
             <Rv cls="pc">
-              <div className="ptier">Starter</div><div className="pname2">Free</div>
-              <div className="pamt">$0</div><div className="pper">Forever · 1 device</div>
+              <div className="ptier">Solo Player</div>
+              <div className="pname2">Free</div>
+              <div className="pamt">$0</div>
+              <div className="pper">Forever free · 1 device · No card needed</div>
               <div className="pdiv" />
               <ul className="pfeats">
-                <li><span className="ok">✓</span><span>C.elegans <span className="fem">302 neurons</span></span></li>
-                <li><span className="ok">✓</span><span>STBP + R-STDP training</span></li>
-                <li><span className="ok">✓</span><span>Pascal Ring 0–4 classification</span></li>
-                <li><span className="ok">✓</span><span>ZeroLag VPN basic mode</span></li>
-                <li><span className="ok">✓</span><span>SpikeForge npm (≤1K neurons)</span></li>
-                <li><span className="no">—</span><span style={{ opacity: .35 }}>Schumann 7.83Hz scheduler</span></li>
-                <li><span className="no">—</span><span style={{ opacity: .35 }}>Drosophila 139K neurons</span></li>
-                <li><span className="no">—</span><span style={{ opacity: .35 }}>Metrics export CSV/JSON</span></li>
+                <li><span className="ok">✓</span><span><span className="fem">Kill lag immediately</span> — install and play</span></li>
+                <li><span className="ok">✓</span><span>Android APK + Chrome Extension + iOS PWA</span></li>
+                <li><span className="ok">✓</span><span>AI routing engine <span className="fem">(302-neuron SNN)</span></span></li>
+                <li><span className="ok">✓</span><span>Free Fire · Mobile Legends · PUBG Mobile</span></li>
+                <li><span className="ok">✓</span><span>Real-time ping display on screen</span></li>
+                <li><span className="ok">✓</span><span>LATAM server database pre-loaded</span></li>
+                <li><span className="no">—</span><span style={{ opacity: .35 }}>Multi-hop AI routing (Pro)</span></li>
+                <li><span className="no">—</span><span style={{ opacity: .35 }}>5-device squad mode (Pro)</span></li>
               </ul>
-              <a href="#" className="pbtn pbtn-g">Get started free</a>
+              <a href="#" className="pbtn pbtn-g">Get ZeroLag free →</a>
             </Rv>
+
+            {/* ── PRO ── */}
             <Rv cls="pc pop d1">
               <div className="pbdg">MOST POPULAR</div>
-              <div className="ptier">Professional</div><div className="pname2">Pro</div>
-              <div className="pamt">$4<sub>.99/mo</sub></div><div className="pper">or $29.99/year · Up to 5 devices</div>
+              <div className="ptier">Ranked Grinder</div>
+              <div className="pname2">Pro</div>
+              <div className="pamt">$4<sub>.99/mo</sub></div>
+              <div className="pper">or $29.99/year · Up to 5 devices</div>
               <div className="pdiv" />
               <ul className="pfeats">
-                <li><span className="ok">✓</span><span>Drosophila <span className="fem">139,255 neurons</span></span></li>
-                <li><span className="ok">✓</span><span>Schumann <span className="fem">7.83Hz scheduler</span></span></li>
-                <li><span className="ok">✓</span><span>Full NEAT + STBP + R-STDP</span></li>
-                <li><span className="ok">✓</span><span>Pascal ring breakdown analytics</span></li>
-                <li><span className="ok">✓</span><span>Dopamine curve export CSV/JSON</span></li>
-                <li><span className="ok">✓</span><span>SpikeForge — unlimited neurons</span></li>
-                <li><span className="ok">✓</span><span>HexVertex 6-bit archetype routing</span></li>
-                <li><span className="no">—</span><span style={{ opacity: .35 }}>TRIDENT GPS-free module</span></li>
+                <li><span className="ok">✓</span><span>Everything in Free</span></li>
+                <li><span className="ok">✓</span><span><span className="fem">300× smarter AI</span> — 139,255 neurons</span></li>
+                <li><span className="ok">✓</span><span>Multi-hop routing — less jitter, steadier ping</span></li>
+                <li><span className="ok">✓</span><span><span className="fem">12 games</span> — Valorant, COD, Fortnite + more</span></li>
+                <li><span className="ok">✓</span><span>5 devices — share with your squad or family</span></li>
+                <li><span className="ok">✓</span><span>Live analytics — ms saved per game session</span></li>
+                <li><span className="ok">✓</span><span>Priority server queue at peak hours</span></li>
+                <li><span className="no">—</span><span style={{ opacity: .35 }}>Café dashboard (Enterprise)</span></li>
               </ul>
               <a href="#" className="pbtn pbtn-m">Start Pro — 14 days free</a>
             </Rv>
+
+            {/* ── ENTERPRISE ── */}
             <Rv cls="pc d2">
-              <div className="ptier">Organization</div><div className="pname2">Enterprise</div>
-              <div className="pamt">$299<sub>/mo</sub></div><div className="pper">Per org · Unlimited devices · SLA 99.9%</div>
+              <div className="ptier">Cibercafé · Esports Org</div>
+              <div className="pname2">Enterprise</div>
+              <div className="pamt">$299<sub>/mo</sub></div>
+              <div className="pper">Unlimited seats · All your PCs + phones · SLA 99.9%</div>
+
+              <div className="ent-who">
+                <div className="ent-who-title">This plan is for</div>
+                <div className="ent-who-items">
+                  <span>🖥️ Gaming cafés / cibercafés</span>
+                  <span>🏆 Esports teams & orgs</span>
+                  <span>🎮 Tournament organizers</span>
+                  <span>🏠 Gaming bootcamp houses</span>
+                </div>
+              </div>
+
               <div className="pdiv" />
               <ul className="pfeats">
-                <li><span className="ok">✓</span><span>Everything in Pro</span></li>
-                <li><span className="ok">✓</span><span>TRIDENT <span className="fem">GPS-free localization</span></span></li>
-                <li><span className="ok">✓</span><span>White-label / OEM licensing</span></li>
-                <li><span className="ok">✓</span><span>REST API — SNN metrics</span></li>
-                <li><span className="ok">✓</span><span>ClonEngine Rust source access</span></li>
-                <li><span className="ok">✓</span><span>Marine SNN + WMM2025 module</span></li>
-                <li><span className="ok">✓</span><span>Custom training pipeline</span></li>
-                <li><span className="ok">✓</span><span>SLA 99.9% · Priority support</span></li>
+                <li><span className="ok">✓</span><span>Everything in Pro on <span className="fem">unlimited devices</span></span></li>
+                <li><span className="ok">✓</span><span><span className="fem">Central dashboard</span> — manage every seat at once</span></li>
+                <li><span className="ok">✓</span><span>White-label — show <span className="fem">your café's logo</span>, not ours</span></li>
+                <li><span className="ok">✓</span><span>Ping reports per player / per PC</span></li>
+                <li><span className="ok">✓</span><span>API access — connect to your billing system</span></li>
+                <li><span className="ok">✓</span><span>Dedicated support + 99.9% uptime guarantee</span></li>
+                <li><span className="ok">✓</span><span>Custom server routing for your city / region</span></li>
+                <li><span className="ok">✓</span><span>Free onboarding call included</span></li>
               </ul>
-              <a href="mailto:klonengine@proton.me" className="pbtn pbtn-g">Contact sales →</a>
+              <a href="mailto:klonengine@proton.me" className="pbtn pbtn-g">Talk to us →</a>
             </Rv>
+
           </div>
         </div>
       </section>
@@ -828,14 +853,14 @@ export default function App() {
       {/* CTA */}
       <section id="cta">
         <div className="ctain">
-          <Rv cls="ctal">Open source · Apache 2.0 · Built in New Orleans</Rv>
-          <Rv cls="d1"><h2 className="ctat display">The worm that<br /><em>outsmarted</em> the GPU</h2></Rv>
-          <Rv cls="d2"><p className="ctas">ClonEngine achieves 98.4% F1 on industrial predictive maintenance using a biological wiring diagram from neuroscience research — running in 18.6 KB, on a CPU, in 3 epochs. No GPUs harmed.</p></Rv>
+          <Rv cls="ctal">Free · No card · Works in 60 seconds</Rv>
+          <Rv cls="d1"><h2 className="ctat display">Stop losing games<br /><em>to bad internet.</em></h2></Rv>
+          <Rv cls="d2"><p className="ctas">Your rivals aren't better than you. They just have lower ping. Install ZeroLag free and find out exactly how many milliseconds you've been losing.</p></Rv>
           <Rv cls="d3" style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
-            <a href="#pricing" className="btn-m" style={{ fontSize: 16, padding: "16px 36px" }}>Start free →</a>
-            <a href="#benchmarks" className="btn-g" style={{ fontSize: 16, padding: "16px 28px" }}>Read the benchmarks</a>
+            <a href="#pricing" className="btn-m" style={{ fontSize: 16, padding: "16px 36px" }}>Get ZeroLag free →</a>
+            <a href="#games" className="btn-g" style={{ fontSize: 16, padding: "16px 28px" }}>See supported games ↓</a>
           </Rv>
-          <Rv cls="d4 ctanote">No credit card · No account for Free tier · Apache 2.0</Rv>
+          <Rv cls="d4 ctanote">No credit card · No account needed · Android + Chrome + iOS</Rv>
         </div>
       </section>
 
@@ -843,14 +868,41 @@ export default function App() {
       <footer>
         <div className="wrap">
           <div className="fg">
-            <div><div className="flogo">CLONENGINE</div><p className="ftag">The first neuromorphic AI running on real biological connectomes. Built by one engineer in New Orleans without capital, institutions, or GPU clusters.</p></div>
-            <div><div className="fch">Products</div><ul className="flinks"><li><a href="#">KlonOS VPN</a></li><li><a href="#">SpikeForge npm</a></li><li><a href="#">ClonEngine SDK</a></li><li><a href="#">NeuroCalc</a></li></ul></div>
-            <div><div className="fch">Research</div><ul className="flinks"><li><a href="#">AI4I 2020 Results</a></li><li><a href="#">NeuroBench Track</a></li><li><a href="#">arXiv Preprint</a></li><li><a href="#">Zenodo DOI</a></li></ul></div>
-            <div><div className="fch">Company</div><ul className="flinks"><li><a href="#">About</a></li><li><a href="mailto:klonengine@proton.me">Contact</a></li><li><a href="#">GitHub</a></li><li><a href="#">Apache 2.0</a></li></ul></div>
+            <div>
+              <div className="flogo">ZEROLAG</div>
+              <p className="ftag">Gaming VPN powered by a 302-neuron AI engine trained on real biology. Kill your ping on Free Fire, Mobile Legends and PUBG — free, on Android, Chrome & iOS. Built in New Orleans.</p>
+            </div>
+            <div>
+              <div className="fch">Download</div>
+              <ul className="flinks">
+                <li><a href="#">Android APK</a></li>
+                <li><a href="#">Chrome Extension</a></li>
+                <li><a href="#">iOS PWA</a></li>
+                <li><a href="#">Windows (beta)</a></li>
+              </ul>
+            </div>
+            <div>
+              <div className="fch">Games</div>
+              <ul className="flinks">
+                <li><a href="#">Free Fire</a></li>
+                <li><a href="#">Mobile Legends</a></li>
+                <li><a href="#">PUBG Mobile</a></li>
+                <li><a href="#">All 12 games →</a></li>
+              </ul>
+            </div>
+            <div>
+              <div className="fch">Company</div>
+              <ul className="flinks">
+                <li><a href="#">About ZeroLag</a></li>
+                <li><a href="mailto:klonengine@proton.me">Contact us</a></li>
+                <li><a href="#">Cibercafé / Enterprise</a></li>
+                <li><a href="#">Privacy Policy</a></li>
+              </ul>
+            </div>
           </div>
           <div className="fbot">
-            <div className="fcopy">© 2026 Juan José Salgado Fuentes · New Orleans, Louisiana · USA</div>
-            <div className="fdoi">CBENN · C.elegans 302N · Maya Q20 · Schumann 7.83Hz</div>
+            <div className="fcopy">© 2026 ZeroLag by KlonOS · Juan José Salgado Fuentes · New Orleans, Louisiana</div>
+            <div className="fdoi">SNN · 302N · LATAM Optimized · Free Forever</div>
           </div>
         </div>
       </footer>
