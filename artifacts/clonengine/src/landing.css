@@ -334,7 +334,14 @@ h1.ht{font-size:clamp(52px,6.8vw,96px);margin-bottom:20px;line-height:.88}
 .sciov{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,var(--card));padding:20px}
 .scilive{font-family:var(--f-mono);font-size:9px;letter-spacing:.15em;color:var(--green);display:flex;align-items:center;gap:6px}
 .scilive::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--green);animation:glow-g 1.5s infinite;flex-shrink:0}
-#sci-cnt{position:absolute;top:16px;right:16px;font-family:var(--f-display);font-size:14px;font-weight:700;color:var(--green)}
+#sci-hud{position:absolute;top:14px;right:14px;background:rgba(2,12,24,.82);border:1px solid rgba(255,255,255,.07);border-radius:4px;padding:10px 12px;display:flex;flex-direction:column;gap:5px;backdrop-filter:blur(4px)}
+.sci-hud-row{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.sci-hud-lbl{font-family:var(--f-mono);font-size:8px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+.sci-hud-val{font-family:var(--f-display);font-size:11px;font-weight:700;letter-spacing:.04em}
+.sci-hud-green{color:var(--green)}
+.sci-hud-orange{color:var(--prime)}
+.sci-hud-violet{color:#c084fc}
+.sci-hud-div{height:1px;background:rgba(255,255,255,.06);margin:3px 0}
 .scipts{display:flex;flex-direction:column;gap:28px;margin-top:36px}
 .scipt{display:flex;gap:20px;align-items:flex-start}
 .spn{font-family:var(--f-display);font-size:12px;font-weight:700;color:var(--prime);border:1px solid rgba(255,122,26,.25);border-radius:3px;padding:6px 10px;flex-shrink:0;min-width:52px;text-align:center}

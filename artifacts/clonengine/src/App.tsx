@@ -310,7 +310,25 @@ export default function App() {
             <Rv cls="scivis">
               <SciCanvas onSpk={setSciSpk} />
               <div className="sciov"><div className="scilive">C.ELEGANS 302N · HEXAGONAL TOPOLOGY · LIVE</div></div>
-              <div id="sci-cnt">{sciSpk.toLocaleString()} spk</div>
+              <div id="sci-hud">
+                <div className="sci-hud-row">
+                  <span className="sci-hud-lbl">SPIKES</span>
+                  <span className="sci-hud-val sci-hud-green">{sciSpk > 0 ? sciSpk.toLocaleString() : "—"}</span>
+                </div>
+                <div className="sci-hud-div" />
+                <div className="sci-hud-row">
+                  <span className="sci-hud-lbl">C. ELEGANS</span>
+                  <span className="sci-hud-val sci-hud-orange">302 N</span>
+                </div>
+                <div className="sci-hud-row">
+                  <span className="sci-hud-lbl">DROSOPHILA</span>
+                  <span className="sci-hud-val sci-hud-violet">139,255 N</span>
+                </div>
+                <div className="sci-hud-row">
+                  <span className="sci-hud-lbl">SCALE</span>
+                  <span className="sci-hud-val sci-hud-violet">×433</span>
+                </div>
+              </div>
             </Rv>
             <Rv cls="d2">
               <div className="sb">The science</div>
