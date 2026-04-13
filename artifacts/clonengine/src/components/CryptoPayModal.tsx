@@ -126,7 +126,7 @@ export function CryptoPayModal({ open, plan, onClose }: Props) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ signature, plan, planUsdPrice: price.usd }),
+        body: JSON.stringify({ signature, plan, senderAddress: solAddr }),
       });
       const data = await res.json() as { verified: boolean; error?: string };
       if (data.verified) {
