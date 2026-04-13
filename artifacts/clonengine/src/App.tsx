@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+// ─── CONSTANTS (outside component — never re-created on render) ───────────────
+const TICKER_ITEMS: [string, string][] = [
+  ["Free Fire", "-61ms latency saved"], ["Valorant", "-38ms latency saved"],
+  ["Fortnite", "-47ms latency saved"], ["PUBG Mobile", "-55ms latency saved"],
+  ["Apex Legends", "-42ms latency saved"], ["Mobile Legends", "-53ms latency saved"],
+  ["CS2", "-29ms latency saved"], ["Call of Duty", "-36ms latency saved"],
+  ["Android APK", "Real TUN VPN interface"], ["Chrome Extension", "DOM + network routing"],
+  ["SNN AI", "302-neuron routing engine"], ["$0 forever", "Free plan · no credit card"],
+];
+
 // ─── IZHIKEVICH SNN ENGINE ────────────────────────────────────────────────────
 interface N { x: number; y: number; vx?: number; vy?: number; v: number; u: number; f: number; l: boolean }
 function izhi(n: N, I: number): boolean {
@@ -13,92 +23,137 @@ function izhi(n: N, I: number): boolean {
   return false;
 }
 
-// ─── HERO CANVAS ──────────────────────────────────────────────────────────────
+// ─── HERO CANVAS — SpikeForge batch renderer + PascalCuller ──────────────────
+// Key perf wins:
+//   • SpikeForge: 700 edge draw-calls → batched paths grouped by colour bucket
+//   • PascalCuller: skip draws below opacity threshold (CULL_ALPHA / CULL_NODE)
+//   • No save/restore inside hot loops — shadow state manually managed
+//   • Tab-visibility early return — pauses RAF when page is hidden
+const CULL_ALPHA = 0.038;   // PascalCuller edge threshold
+const CULL_NODE  = 0.048;   // PascalCuller node threshold
+
 function HeroCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const cv = ref.current; if (!cv) return;
     const cx = cv.getContext("2d")!;
     let W = 0, H = 0, raf = 0;
-    function rs() { W = cv.width = cv.offsetWidth; H = cv.height = cv.offsetHeight; }
+    function rs() {
+      if (!cv) return;
+      W = cv.width = cv.offsetWidth;
+      H = cv.height = cv.offsetHeight;
+    }
     rs(); window.addEventListener("resize", rs);
+
     const N = 302, ns: N[] = [];
-    for (let i = 0; i < N; i++) ns.push({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * .25, vy: (Math.random() - .5) * .25, v: -65 + Math.random() * 10, u: -13, f: 0, l: Math.random() > .5 });
+    for (let i = 0; i < N; i++) ns.push({
+      x: Math.random() * W, y: Math.random() * H,
+      vx: (Math.random() - .5) * .22, vy: (Math.random() - .5) * .22,
+      v: -65 + Math.random() * 10, u: -13, f: 0, l: Math.random() > .5,
+    });
     const sy: { a: number; b: number; w: number }[] = [];
-    for (let i = 0; i < 700; i++) { const a = Math.floor(Math.random() * N), b = Math.floor(Math.random() * N); if (a !== b) sy.push({ a, b, w: (Math.random() - .5) * .4 }); }
+    for (let i = 0; i < 700; i++) {
+      const a = Math.floor(Math.random() * N), b = Math.floor(Math.random() * N);
+      if (a !== b) sy.push({ a, b, w: (Math.random() - .5) * .4 });
+    }
+
+    // Reusable segment buckets — keyed by quantised alpha (avoids string alloc per edge)
+    // 12 fire-counter steps × 2 colours = 24 buckets max, vs 700 state-changes/frame
+    const oBkt = new Map<number, number[]>(); // orange: [x1,y1,x2,y2, ...]
+    const cBkt = new Map<number, number[]>(); // cyan
+
     let tk = 0, sc = 0;
+
     function draw(ts: number) {
       raf = requestAnimationFrame(draw);
-      cx.fillStyle = "rgba(2,1,8,.13)"; cx.fillRect(0, 0, W, H); tk++; sc += 7.83 / 60;
+      if (document.hidden) return; // tab-visibility cull — zero GPU work when tab hidden
+
+      cx.fillStyle = "rgba(2,12,24,.14)"; cx.fillRect(0, 0, W, H);
+      tk++; sc += 7.83 / 60;
       const sf = sc >= 1; if (sf) sc -= 1;
+
+      // ── SNN step ──────────────────────────────────────────────────────────
       const inp = new Float32Array(N);
-      sy.forEach(s => { if (ns[s.a].f > 0) inp[s.b] += s.w * 9 });
-      ns.forEach((n, i) => {
-        izhi(n, inp[i] + (Math.random() - .3) * 4 + (i % 53 === tk % 53 ? 4 : 0));
+      for (let i = 0; i < sy.length; i++) {
+        const s = sy[i];
+        if (ns[s.a].f > 0) inp[s.b] += s.w * 9;
+      }
+      for (let i = 0; i < N; i++) {
+        const n = ns[i];
+        // SpikeForge early-exit: skip full Izhikevich for deeply-resting neurons
+        const I = inp[i] + (Math.random() - .3) * 4 + (i % 53 === tk % 53 ? 4 : 0);
+        if (n.f === 0 && n.v < -62 && Math.abs(I) < 1.5) {
+          // membrane far from threshold and negligible input — cheap drift only
+          n.v += .04 * n.v * n.v * .002 + I * .04;
+        } else {
+          izhi(n, I);
+        }
         n.x += n.vx!; n.y += n.vy!;
-        if (n.x < 0) n.x = W; if (n.x > W) n.x = 0;
-        if (n.y < 0) n.y = H; if (n.y > H) n.y = 0;
+        if (n.x < 0) n.x = W; else if (n.x > W) n.x = 0;
+        if (n.y < 0) n.y = H; else if (n.y > H) n.y = 0;
+      }
+
+      // ── SpikeForge batch edge renderer ────────────────────────────────────
+      oBkt.clear(); cBkt.clear();
+      for (let i = 0; i < sy.length; i++) {
+        const s = sy[i], f = ns[s.a].f;
+        if (!f) continue;
+        const alpha = Math.round((.05 + f / 12 * .18) * 20) / 20; // quantise to 0.05 steps
+        if (alpha < CULL_ALPHA) continue; // PascalCuller
+        const bkt = ns[s.a].l ? oBkt : cBkt;
+        let arr = bkt.get(alpha);
+        if (!arr) { arr = []; bkt.set(alpha, arr); }
+        arr.push(ns[s.a].x, ns[s.a].y, ns[s.b].x, ns[s.b].y);
+      }
+      cx.lineWidth = .5;
+      oBkt.forEach((segs, alpha) => {
+        cx.strokeStyle = `rgba(255,122,26,${alpha})`;
+        cx.beginPath();
+        for (let i = 0; i < segs.length; i += 4) { cx.moveTo(segs[i], segs[i+1]); cx.lineTo(segs[i+2], segs[i+3]); }
+        cx.stroke();
       });
-      sy.forEach(s => {
-        if (!ns[s.a].f) return;
-        cx.save(); cx.strokeStyle = `rgba(0,255,148,${.06 + ns[s.a].f / 12 * .15})`; cx.lineWidth = .5;
-        cx.beginPath(); cx.moveTo(ns[s.a].x, ns[s.a].y); cx.lineTo(ns[s.b].x, ns[s.b].y); cx.stroke(); cx.restore();
+      cBkt.forEach((segs, alpha) => {
+        cx.strokeStyle = `rgba(0,212,255,${alpha})`;
+        cx.beginPath();
+        for (let i = 0; i < segs.length; i += 4) { cx.moveTo(segs[i], segs[i+1]); cx.lineTo(segs[i+2], segs[i+3]); }
+        cx.stroke();
       });
-      ns.forEach(n => {
-        const g = n.f > 0; cx.save();
-        if (g) { cx.shadowColor = n.l ? "#22d3ee" : "#00ff94"; cx.shadowBlur = 14; cx.fillStyle = n.l ? "#22d3ee" : "#00ff94"; }
-        else cx.fillStyle = `rgba(${n.l ? "34,211,238" : "0,255,148"},${.08 + Math.max(0, (n.v + 65) / 75) * .3})`;
-        cx.beginPath(); cx.arc(n.x, n.y, g ? 3.5 : 1.5, 0, Math.PI * 2); cx.fill(); cx.restore();
-      });
+
+      // ── Node renderer — two passes, no save/restore in hot loop ───────────
+      // Pass 1: inactive nodes (no glow) — set shadow off once before loop
+      cx.shadowBlur = 0; cx.shadowColor = "transparent";
+      const active: N[] = [];
+      for (let i = 0; i < N; i++) {
+        const n = ns[i];
+        if (n.f > 0) { active.push(n); continue; }
+        const op = .07 + Math.max(0, (n.v + 65) / 75) * .28;
+        if (op < CULL_NODE) continue; // PascalCuller
+        cx.fillStyle = `rgba(${n.l ? "255,122,26" : "0,212,255"},${op.toFixed(2)})`;
+        cx.beginPath(); cx.arc(n.x, n.y, 1.5, 0, Math.PI * 2); cx.fill();
+      }
+      // Pass 2: active (glowing) nodes — typically ≤30, individual draws OK
+      for (let i = 0; i < active.length; i++) {
+        const n = active[i];
+        cx.shadowColor = n.l ? "#ff7a1a" : "#00d4ff";
+        cx.shadowBlur = 14;
+        cx.fillStyle = n.l ? "#ff7a1a" : "#00d4ff";
+        cx.beginPath(); cx.arc(n.x, n.y, 3.5, 0, Math.PI * 2); cx.fill();
+      }
+      cx.shadowBlur = 0; cx.shadowColor = "transparent";
+
+      // Schumann pulse ring — amber
       if (sf) {
-        cx.save(); cx.strokeStyle = "rgba(155,93,229,.18)"; cx.lineWidth = 1; cx.beginPath();
+        cx.strokeStyle = "rgba(255,195,0,.12)"; cx.lineWidth = 1;
+        cx.beginPath();
         cx.arc(W * .62, H * .4, (ts % 1000 / 1000) * Math.max(W, H) * .35, 0, Math.PI * 2);
-        cx.stroke(); cx.restore();
+        cx.stroke();
       }
     }
+
     raf = requestAnimationFrame(draw);
     return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", rs); };
   }, []);
   return <canvas ref={ref} id="hero-canvas" />;
-}
-
-// ─── PANEL CANVAS ─────────────────────────────────────────────────────────────
-function PanelCanvas({ onStats }: { onStats: (spk: number, pct: string) => void }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const cv = ref.current; if (!cv) return;
-    const cx = cv.getContext("2d")!;
-    let W = 0, H = 0, raf = 0;
-    function rs() { W = cv.width = cv.offsetWidth; H = cv.height = cv.offsetHeight; }
-    rs(); window.addEventListener("resize", rs);
-    const N = 60, ns: N[] = [];
-    function buildNs() {
-      ns.length = 0;
-      for (let i = 0; i < N; i++) { const a = (i / N) * Math.PI * 2, r = 38 + (i % 4) * 20; ns.push({ x: W / 2 + r * Math.cos(a), y: H / 2 + r * Math.sin(a), v: -65, u: -13, f: 0, l: i % 2 === 0 }); }
-    }
-    buildNs();
-    let tot = 0, tk = 0;
-    function draw() {
-      raf = requestAnimationFrame(draw);
-      const ww = cv.offsetWidth, hh = cv.offsetHeight;
-      if (W !== ww || H !== hh) { W = cv.width = ww; H = cv.height = hh; buildNs(); }
-      cx.fillStyle = "rgba(16,13,34,.22)"; cx.fillRect(0, 0, W, H); tk++;
-      let fi = 0;
-      ns.forEach((n, i) => { if (izhi(n, (Math.random() - .25) * 14 + (i % 9 === tk % 9 ? 10 : 0))) { fi++; tot++; } });
-      ns.forEach((n, i) => {
-        const g = n.f > 0; cx.save();
-        if (g) {
-          cx.shadowColor = n.l ? "#22d3ee" : "#00ff94"; cx.shadowBlur = 16; cx.fillStyle = n.l ? "#22d3ee" : "#00ff94";
-          ns.forEach((m, j) => { if (j === i || Math.random() > .22) return; cx.strokeStyle = "rgba(0,255,148,.13)"; cx.lineWidth = .5; cx.beginPath(); cx.moveTo(n.x, n.y); cx.lineTo(m.x, m.y); cx.stroke(); });
-        } else cx.fillStyle = `rgba(0,255,148,${.1 + (n.v + 65) / 75 * .28})`;
-        cx.beginPath(); cx.arc(n.x, n.y, g ? 4.5 : 2.5, 0, Math.PI * 2); cx.fill(); cx.restore();
-      });
-      onStats(tot, ((fi / N) * 100).toFixed(0) + "%");
-    }
-    raf = requestAnimationFrame(draw);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", rs); };
-  }, [onStats]);
-  return <canvas ref={ref} id="panel-canvas" />;
 }
 
 // ─── SCIENCE CANVAS ───────────────────────────────────────────────────────────
@@ -121,21 +176,27 @@ function SciCanvas({ onSpk }: { onSpk: (n: number) => void }) {
     let tot = 0, tk = 0;
     function draw() {
       raf = requestAnimationFrame(draw);
-      cx.fillStyle = "rgba(9,5,26,.18)"; cx.fillRect(0, 0, W, H); tk++;
+      cx.fillStyle = "rgba(2,12,24,.18)"; cx.fillRect(0, 0, W, H); tk++;
       ns.forEach((n, i) => { if (izhi(n, (Math.random() - .28) * 12 + (i % 13 === tk % 13 ? 9 : 0))) tot++; });
       ns.forEach((n, i) => {
         if (!n.f) return;
         ns.forEach((m, j) => {
           if (j === i) return; const d = Math.hypot(m.x - n.x, m.y - n.y);
           if (d > dx * 1.65) return;
-          cx.save(); cx.strokeStyle = `rgba(0,255,148,${.1 + n.f / 12 * .2})`; cx.lineWidth = .6;
+          const col = n.l ? "255,122,26" : "0,212,255";
+          cx.save(); cx.strokeStyle = `rgba(${col},${.1 + n.f / 12 * .2})`; cx.lineWidth = .6;
           cx.beginPath(); cx.moveTo(n.x, n.y); cx.lineTo(m.x, m.y); cx.stroke(); cx.restore();
         });
       });
       ns.forEach(n => {
         const g = n.f > 0, sz = g ? 7 : 4; cx.save();
-        if (g) { cx.shadowColor = n.l ? "#22d3ee" : "#00ff94"; cx.shadowBlur = 20; cx.fillStyle = n.l ? "#22d3ee" : "#00ff94"; }
-        else cx.fillStyle = `rgba(0,255,148,${.1 + Math.max(0, (n.v + 65) / 75) * .28})`;
+        if (g) {
+          cx.shadowColor = n.l ? "#ff7a1a" : "#00d4ff";
+          cx.shadowBlur = 20;
+          cx.fillStyle = n.l ? "#ff7a1a" : "#00d4ff";
+        } else {
+          cx.fillStyle = `rgba(${n.l ? "255,122,26" : "0,212,255"},${.1 + Math.max(0, (n.v + 65) / 75) * .28})`;
+        }
         cx.beginPath();
         for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3 - Math.PI / 6; cx.lineTo(n.x + sz * Math.cos(a), n.y + sz * Math.sin(a)); }
         cx.closePath(); cx.fill(); cx.restore();
@@ -384,14 +445,12 @@ function PingMeter() {
 // ─── APP ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [scrolled, setScrolled] = useState(false);
-  const [panelSpk, setPanelSpk] = useState(0);
-  const [panelPct, setPanelPct] = useState("—");
   const [sciSpk, setSciSpk] = useState(0);
 
   useEffect(() => {
     // Custom cursor
     const cur = document.createElement("div"); cur.id = "cursor";
-    cur.innerHTML = `<svg viewBox="0 0 12 12" width="12" height="12"><polygon points="6,0 11,9 6,7 1,9" fill="#00ff94"/></svg>`;
+    cur.innerHTML = `<svg viewBox="0 0 12 12" width="12" height="12"><polygon points="6,0 11,9 6,7 1,9" fill="#ff7a1a"/></svg>`;
     const trail = document.createElement("div"); trail.id = "cursor-trail";
     document.body.appendChild(cur); document.body.appendChild(trail);
     let mx = 0, my = 0;
@@ -401,17 +460,6 @@ export default function App() {
     window.addEventListener("scroll", scroll, { passive: true });
     return () => { cur.remove(); trail.remove(); document.removeEventListener("mousemove", mm); window.removeEventListener("scroll", scroll); };
   }, []);
-
-  const handlePanelStats = (s: number, p: string) => { setPanelSpk(s); setPanelPct(p); };
-
-  const TICKER_ITEMS = [
-    ["Free Fire", "-61ms latency saved"], ["Valorant", "-38ms latency saved"],
-    ["Fortnite", "-47ms latency saved"], ["PUBG Mobile", "-55ms latency saved"],
-    ["Apex Legends", "-42ms latency saved"], ["Mobile Legends", "-53ms latency saved"],
-    ["CS2", "-29ms latency saved"], ["Call of Duty", "-36ms latency saved"],
-    ["Android APK", "Real TUN VPN interface"], ["Chrome Extension", "DOM + network routing"],
-    ["SNN AI", "302-neuron routing engine"], ["$0 forever", "Free plan · no credit card"],
-  ];
 
   return (
     <>
