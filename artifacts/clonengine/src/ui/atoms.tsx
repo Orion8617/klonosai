@@ -53,9 +53,10 @@ export function Rv({ children, cls = "", style }: { children: React.ReactNode; c
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current; if (!el) return;
+    // Trigger immediately if already in viewport (threshold=0.01, no negative margin)
     const ob = new IntersectionObserver(
       ([e]) => { if (e.isIntersecting) { el.classList.add("vis"); ob.disconnect(); } },
-      { threshold: .12, rootMargin: "0px 0px -40px 0px" }
+      { threshold: 0.01, rootMargin: "0px 0px 0px 0px" }
     );
     ob.observe(el);
     return () => ob.disconnect();

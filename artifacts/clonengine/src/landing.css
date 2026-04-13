@@ -1108,3 +1108,150 @@ footer{border-top:1px solid var(--border);padding:64px 0 32px}
 .ql-icon{font-size:1.6rem;margin-bottom:10px}
 .ql-name{font-size:1rem;font-weight:600;color:var(--text);margin-bottom:4px}
 .ql-sub{font-size:.8rem;color:var(--muted)}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UX ENHANCEMENTS — Navigation, Tabs, Cards, Sidebar
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── NavBar: active tab with orange bottom line ─────────────────────────── */
+.nav-tab-active{color:var(--prime) !important}
+.nav-tab-active::after{transform:scaleX(1) !important;background:var(--prime) !important}
+
+/* ── NavBar link underline also uses prime color ─────────────────────────── */
+.nav-links a:not(.nav-cta){transition:color .2s}
+.nav-links a:not(.nav-cta):hover{color:var(--prime) !important}
+.nav-links a:not(.nav-cta)::after{background:var(--prime) !important}
+.nav-links a:not(.nav-cta):hover::after{transform:scaleX(1) !important}
+
+/* ── inner-tabs-bar: sliding indicator via pseudo element ───────────────── */
+.inner-tabs{position:relative}
+.inner-tab{position:relative;border-bottom:2px solid transparent;transition:color .18s}
+.inner-tab::after{
+  content:'';position:absolute;bottom:-2px;left:16px;right:16px;height:2px;
+  background:var(--prime);border-radius:1px;
+  transform:scaleX(0);transition:transform .22s cubic-bezier(.4,0,.2,1);
+  transform-origin:center
+}
+.inner-tab:hover{color:var(--text)}
+.inner-tab-active{color:var(--prime);border-bottom-color:transparent}
+.inner-tab-active::after{transform:scaleX(1)}
+
+/* ── Apps sidebar: better visibility & active accent ───────────────────── */
+.apps-sidebar{
+  background:rgba(2,12,24,.6);
+  border:1px solid rgba(200,223,240,.1);
+  border-radius:14px;padding:10px;
+}
+.app-tab-btn{
+  border-radius:9px;transition:background .18s,border-color .18s,box-shadow .18s;
+  border:1px solid transparent
+}
+.app-tab-btn:hover{
+  background:rgba(255,122,26,.07) !important;
+  border-color:rgba(255,122,26,.18) !important
+}
+.app-tab-btn-active{
+  background:rgba(255,122,26,.1) !important;
+  border-color:rgba(255,122,26,.3) !important;
+  box-shadow:0 0 16px rgba(255,122,26,.08) !important
+}
+.app-tab-btn-active .atb-name{color:var(--prime) !important}
+.app-tab-btn-active .atb-icon{filter:drop-shadow(0 0 6px rgba(255,122,26,.4))}
+
+/* ── Apps layout background ─────────────────────────────────────────────── */
+.apps-layout{background:transparent !important}
+
+/* ── App detail panel: glass border + gradient top ─────────────────────── */
+.app-detail-panel{
+  background:rgba(8,18,34,.95) !important;
+  border:1px solid rgba(200,223,240,.14) !important;
+  border-top:2px solid var(--prime) !important;
+  border-radius:16px !important;
+  box-shadow:0 24px 64px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.04);
+}
+.adp-name{color:var(--text) !important}
+.adp-desc{
+  border-left:2px solid var(--prime) !important;
+  color:rgba(200,223,240,.75) !important
+}
+.adp-stat{
+  background:rgba(200,223,240,.04);border:1px solid rgba(200,223,240,.08);
+  border-radius:10px;padding:12px 20px;min-width:90px
+}
+.adp-feat{
+  background:rgba(200,223,240,.03);border:1px solid rgba(200,223,240,.07);
+  border-radius:10px;padding:14px;transition:border-color .2s
+}
+.adp-feat:hover{border-color:rgba(200,223,240,.16)}
+
+/* ── Cards (engineering) better hover ──────────────────────────────────── */
+.ps{
+  border:1px solid rgba(200,223,240,.09) !important;
+  border-radius:12px;padding:20px 22px;
+  background:rgba(200,223,240,.03);
+  transition:border-color .2s,box-shadow .2s
+}
+.ps:hover{border-color:rgba(0,212,255,.22) !important;box-shadow:0 8px 32px rgba(0,212,255,.06)}
+
+/* ── Agent cards ────────────────────────────────────────────────────────── */
+.agent{
+  border:1px solid rgba(200,223,240,.08) !important;
+  border-radius:14px;padding:24px;
+  background:rgba(200,223,240,.03);
+  transition:border-color .25s,transform .25s,box-shadow .25s
+}
+.agent:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(0,0,0,.3)}
+
+/* ── Innovation cards ───────────────────────────────────────────────────── */
+.innov-card{
+  border:1px solid rgba(200,223,240,.09) !important;
+  transition:border-color .25s,transform .2s,box-shadow .25s !important
+}
+.innov-card:hover{
+  border-color:rgba(255,122,26,.25) !important;
+  transform:translateY(-3px) !important;
+  box-shadow:0 12px 36px rgba(0,0,0,.3) !important
+}
+
+/* ── Quick link cards on landing ────────────────────────────────────────── */
+.ql-card{
+  border:1px solid rgba(200,223,240,.12) !important;
+  transition:border-color .22s,background .22s,transform .22s !important
+}
+.ql-card:hover{
+  border-color:rgba(255,122,26,.3) !important;
+  background:rgba(255,122,26,.06) !important;
+  transform:translateY(-2px) !important
+}
+
+/* ── Changelog entry hover ─────────────────────────────────────────────── */
+.cl-entry{transition:background .2s}
+.cl-entry:hover{background:rgba(200,223,240,.02)}
+.cl-latest{border-left:3px solid var(--prime);padding-left:21px !important}
+
+/* ── Platform pills ─────────────────────────────────────────────────────── */
+.adp-plat-pill{
+  background:rgba(200,223,240,.05) !important;
+  border:1px solid rgba(200,223,240,.18) !important;
+  color:var(--text) !important;
+  transition:border-color .18s,background .18s
+}
+.adp-plat-pill:hover{
+  border-color:rgba(0,212,255,.35) !important;
+  background:rgba(0,212,255,.07) !important;
+  color:var(--cyan) !important
+}
+
+/* ── itb-title color refinement ──────────────────────────────────────────── */
+.itb-title{font-size:.88rem;color:rgba(200,223,240,.6)}
+.itb-title em{color:var(--prime) !important}
+
+/* ── Spec table row hover ────────────────────────────────────────────────── */
+.spec-tbl tr:hover td{background:rgba(200,223,240,.03)}
+
+/* ── API table rows ─────────────────────────────────────────────────────── */
+.api-row{transition:background .15s}
+.api-row:hover{background:rgba(200,223,240,.04) !important}
+
+/* ── Reveal: faster fade (already threshold 0.01 in tsx) ─────────────────── */
+.rv{transition:opacity .55s ease,transform .55s ease !important}
