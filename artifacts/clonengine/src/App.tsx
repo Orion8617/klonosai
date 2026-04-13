@@ -55,17 +55,55 @@ function lodR(imp: number): number {
   return 0.7;
 }
 
-// ─── ORBITAL SNN GLOBE — Earth wireframe + SNN satellite nodes ────────────────
-// Visual concept: wireframe Earth, 24 SNN nodes orbiting in 4 rings,
-// connection lines when firing, SpikeForge pipeline fully active.
-interface Sat { oi: number; angle: number; ni: number }
-const GLOBE_ORBITS = [
-  { rMult: 1.68, inc: 0.18, speed: 0.0090, l: true  },  // low equatorial   — orange
-  { rMult: 1.98, inc: 0.62, speed: 0.0070, l: false },  // mid inclination  — cyan
-  { rMult: 2.28, inc: 1.08, speed: 0.0055, l: true  },  // high inclination — orange
-  { rMult: 2.58, inc: 1.38, speed: 0.0042, l: false },  // near-polar       — cyan
-] as const;
-const SATS_PER_RING = 6;
+// ─── ORBITAL SNN GLOBE — Real SatNOGS TLE + SNN satellite nodes ──────────────
+// Fetches live TLE data from db.satnogs.org, parses ECI orbital elements,
+// projects to screen with correct inclination + RAAN geometry.
+interface RealSat {
+  name: string;
+  inc: number;    // inclination radians
+  raan: number;   // RAAN radians
+  speed: number;  // rad/frame (scaled for visual)
+  rMult: number;  // orbit radius multiplier (altitude-derived)
+  l: boolean;     // orange (true) or cyan (false)
+  angle: number;  // current orbit angle
+  ni: number;     // SNN neuron index
+}
+
+function parseTle2(line2: string) {
+  const f = line2.trim().split(/\s+/);
+  const mm = parseFloat(f[7]);
+  const GM = 3.986004418e14;
+  const T  = 86400 / mm;
+  const a  = Math.cbrt(GM * T * T / (4 * Math.PI * Math.PI)) / 1000; // km
+  return {
+    inc:   parseFloat(f[2]) * Math.PI / 180,
+    raan:  parseFloat(f[3]) * Math.PI / 180,
+    ma:    parseFloat(f[6]) * Math.PI / 180,
+    mm,
+    altKm: a - 6371,
+  };
+}
+
+// Default fallback satellites (used while TLE is loading)
+const FALLBACK_SATS: RealSat[] = (() => {
+  const bands = [
+    { inc: 0.10, raan: 0.00, l: true  },
+    { inc: 0.62, raan: 1.57, l: false },
+    { inc: 1.08, raan: 3.14, l: true  },
+    { inc: 1.38, raan: 4.71, l: false },
+  ];
+  return bands.flatMap((b, bi) =>
+    Array.from({ length: 6 }, (_, j) => ({
+      name: `SAT-${bi * 6 + j + 1}`,
+      inc: b.inc, raan: b.raan,
+      speed: 0.007 - bi * 0.001,
+      rMult: 1.68 + bi * 0.30,
+      l: b.l,
+      angle: (j / 6) * Math.PI * 2,
+      ni: bi * 6 + j,
+    }))
+  );
+})();
 
 function HeroCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
