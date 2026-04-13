@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Disallow authenticated/utility paths
+Disallow: /api/
+
+# Welcome search bots
+User-agent: Googlebot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+Sitemap: https://zerolag.klonos.app/sitemap.xml

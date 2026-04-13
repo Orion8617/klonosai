@@ -3,11 +3,104 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+
+    <!-- ── Primary SEO ─────────────────────────────────────────────────── -->
     <title>ZeroLag by KlonOS — Kill Your Ping. Win More.</title>
-    <meta name="description" content="ZeroLag routes your game packets through a 302-neuron AI engine trained on real biology. Free Fire, Mobile Legends, PUBG. Android + Chrome + iOS. No config." />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;700&family=Space+Grotesk:ital,wght@0,300;0,400;0,500;0,700;1,300&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <meta name="description" content="ZeroLag routes your game packets through a 302-neuron AI engine trained on real C. elegans biology. Free Fire, Mobile Legends, PUBG Mobile. Free on Android, Chrome & iOS. -44ms avg. No config." />
+    <meta name="keywords" content="gaming VPN, reduce ping, Free Fire VPN, PUBG Mobile lag, latency reducer, LATAM gaming, anti-lag, ZeroLag, KlonOS, neuromorphic AI" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://zerolag.klonos.app/" />
+
+    <!-- ── Open Graph ──────────────────────────────────────────────────── -->
+    <meta property="og:title" content="ZeroLag — Kill Your Ping. Win More." />
+    <meta property="og:description" content="Free gaming VPN with a 302-neuron AI engine trained on real biology. -44ms avg latency on Free Fire, Mobile Legends & PUBG Mobile. Free forever on Android, Chrome & iOS." />
+    <meta property="og:url" content="https://zerolag.klonos.app/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale:alternate" content="es_419" />
+    <meta property="og:locale:alternate" content="pt_BR" />
+    <meta property="og:site_name" content="ZeroLag by KlonOS" />
+    <meta property="og:image" content="https://zerolag.klonos.app/opengraph.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="ZeroLag — Kill Your Ping. Win More. Free gaming VPN with neuromorphic AI." />
+
+    <!-- ── Twitter / X Card ───────────────────────────────────────────── -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="ZeroLag — Kill Your Ping. Win More." />
+    <meta name="twitter:description" content="Free gaming VPN. 302-neuron AI engine trained on C. elegans biology. -44ms avg. Free Fire, PUBG, Mobile Legends. Android + Chrome + iOS." />
+    <meta name="twitter:image" content="https://zerolag.klonos.app/opengraph.jpg" />
+    <meta name="twitter:site" content="@klonos_app" />
+
+    <!-- ── Theme + PWA ─────────────────────────────────────────────────── -->
+    <meta name="theme-color" content="#020c18" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="application-name" content="ZeroLag" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ZeroLag" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- ── Google Fonts — async (non-render-blocking) ─────────────────── -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" as="style"
+      href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;700&family=Space+Grotesk:ital,wght@0,300;0,400;0,500;0,700;1,300&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" />
+    <link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;700&family=Space+Grotesk:ital,wght@0,300;0,400;0,500;0,700;1,300&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap"
+      media="print" onload="this.media='all'" />
+    <noscript>
+      <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;700&family=Space+Grotesk:ital,wght@0,300;0,400;0,500;0,700;1,300&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" />
+    </noscript>
+
+    <!-- ── Structured Data — Organization + WebSite ───────────────────── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://zerolag.klonos.app/#organization",
+          "name": "KlonOS",
+          "url": "https://zerolag.klonos.app/",
+          "logo": "https://zerolag.klonos.app/favicon.svg",
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "email": "klonengine@proton.me",
+            "contactType": "customer service"
+          },
+          "founder": {
+            "@type": "Person",
+            "name": "Juan José Salgado Fuentes"
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://zerolag.klonos.app/#website",
+          "url": "https://zerolag.klonos.app/",
+          "name": "ZeroLag by KlonOS",
+          "description": "Free gaming VPN with neuromorphic AI engine for LATAM mobile gamers",
+          "publisher": { "@id": "https://zerolag.klonos.app/#organization" },
+          "inLanguage": ["en", "es", "pt-BR"]
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "ZeroLag",
+          "applicationCategory": "UtilitiesApplication",
+          "operatingSystem": "Android, iOS, Chrome",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "description": "Gaming VPN powered by a 302-neuron spiking neural network trained on C. elegans connectome data. Reduces game packet latency by an average of 44ms.",
+          "url": "https://zerolag.klonos.app/",
+          "publisher": { "@id": "https://zerolag.klonos.app/#organization" }
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

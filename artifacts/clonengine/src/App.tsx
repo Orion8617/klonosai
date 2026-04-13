@@ -18,10 +18,17 @@ import { BenchBar, Counter, Rv } from "./ui/atoms";
 import { GAMES_DATA }     from "./data/games";
 import { PingMeter }         from "./sections/PingMeter";
 import { EngineProfiler }    from "./sections/EngineProfiler";
+import { DownloadModal }     from "./components/DownloadModal";
+import { PrivacyModal }      from "./components/PrivacyModal";
 
 export default function App() {
   const [scrolled, setScrolled] = useState(false);
   const [sciSpk,   setSciSpk]   = useState(0);
+  const [dlOpen,   setDlOpen]   = useState(false);
+  const [privOpen, setPrivOpen] = useState(false);
+
+  const openDL   = (e: React.MouseEvent) => { e.preventDefault(); setDlOpen(true); };
+  const openPriv = (e: React.MouseEvent) => { e.preventDefault(); setPrivOpen(true); };
 
   useEffect(() => {
     // Custom cursor — orange crosshair
@@ -43,6 +50,9 @@ export default function App() {
 
   return (
     <>
+      <DownloadModal open={dlOpen}   onClose={() => setDlOpen(false)} />
+      <PrivacyModal  open={privOpen} onClose={() => setPrivOpen(false)} />
+
       {/* ── NAV ──────────────────────────────────────────────────────────── */}
       <nav id="nav" className={scrolled ? "scrolled" : ""}>
         <div className="nav-in">
@@ -86,9 +96,9 @@ export default function App() {
                 <a href="#games" className="btn-g">See supported games ↓</a>
               </div>
               <div className="hplatforms">
-                <span className="hplat">📱 Android APK</span>
-                <span className="hplat">🌐 Chrome Extension</span>
-                <span className="hplat">🍎 iOS PWA</span>
+                <button className="hplat" onClick={openDL}>📱 Android APK</button>
+                <button className="hplat" onClick={openDL}>🌐 Chrome Extension</button>
+                <button className="hplat" onClick={openDL}>🍎 iOS PWA</button>
               </div>
             </Rv>
             <Rv cls="d4"><div className="hnums">
@@ -296,7 +306,7 @@ export default function App() {
           <Rv cls="d2 games-cta">
             <p className="gcta-note">Works out of the box on Android APK · Chrome Extension · iOS PWA · No configuration required</p>
             <div className="gcta-btns">
-              <a href="#pricing" className="btn-m">Download ZeroLag free →</a>
+              <a href="#" className="btn-m" onClick={openDL}>Download ZeroLag free →</a>
               <a href="#products" className="btn-g">View all products ↓</a>
             </div>
           </Rv>
@@ -415,7 +425,7 @@ export default function App() {
                 <li><span className="no">—</span><span style={{ opacity: .35 }}>Multi-hop AI routing (Pro)</span></li>
                 <li><span className="no">—</span><span style={{ opacity: .35 }}>5-device squad mode (Pro)</span></li>
               </ul>
-              <a href="#" className="pbtn pbtn-g">Get ZeroLag free →</a>
+              <a href="#" className="pbtn pbtn-g" onClick={openDL}>Get ZeroLag free →</a>
             </Rv>
 
             <Rv cls="pc pop d1">
@@ -435,7 +445,7 @@ export default function App() {
                 <li><span className="ok">✓</span><span>Priority server queue at peak hours</span></li>
                 <li><span className="no">—</span><span style={{ opacity: .35 }}>Drosophila 139K engine (Science)</span></li>
               </ul>
-              <a href="#" className="pbtn pbtn-m">Start Pro — 14 days free</a>
+              <a href="#" className="pbtn pbtn-m" onClick={openDL}>Start Pro — 14 days free</a>
             </Rv>
 
             <Rv cls="pc d2">
@@ -515,28 +525,28 @@ export default function App() {
             <div>
               <div className="fch">Download</div>
               <ul className="flinks">
-                <li><a href="#">Android APK</a></li>
-                <li><a href="#">Chrome Extension</a></li>
-                <li><a href="#">iOS PWA</a></li>
-                <li><a href="#">Windows (beta)</a></li>
+                <li><a href="#" onClick={openDL}>Android APK</a></li>
+                <li><a href="#" onClick={openDL}>Chrome Extension</a></li>
+                <li><a href="#" onClick={openDL}>iOS PWA</a></li>
+                <li><a href="#" onClick={openDL}>Windows (beta)</a></li>
               </ul>
             </div>
             <div>
               <div className="fch">Games</div>
               <ul className="flinks">
-                <li><a href="#">Free Fire</a></li>
-                <li><a href="#">Mobile Legends</a></li>
-                <li><a href="#">PUBG Mobile</a></li>
-                <li><a href="#">All 12 games →</a></li>
+                <li><a href="#games">Free Fire</a></li>
+                <li><a href="#games">Mobile Legends</a></li>
+                <li><a href="#games">PUBG Mobile</a></li>
+                <li><a href="#games">All 12 games →</a></li>
               </ul>
             </div>
             <div>
               <div className="fch">Company</div>
               <ul className="flinks">
-                <li><a href="#">About ZeroLag</a></li>
+                <li><a href="#how">About ZeroLag</a></li>
                 <li><a href="mailto:klonengine@proton.me">Contact us</a></li>
-                <li><a href="#">Cibercafé / Enterprise</a></li>
-                <li><a href="#">Privacy Policy</a></li>
+                <li><a href="#pricing">Cibercafé / Enterprise</a></li>
+                <li><a href="#" onClick={openPriv}>Privacy Policy</a></li>
               </ul>
             </div>
           </div>
