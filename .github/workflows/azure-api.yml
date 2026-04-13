@@ -8,12 +8,8 @@ on:
       - 'lib/**'
   workflow_dispatch:
 
-env:
-  REGISTRY: klonosai.azurecr.io
-  IMAGE:    klonosai.azurecr.io/api-server
-
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     name: Build & Deploy API Server
 
@@ -26,38 +22,30 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build API server
-        run: pnpm --filter @workspace/api-server run build
-        env:
-          NODE_ENV: production
+      - name: Install & build
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @workspace/api-server run build
 
       - name: Azure login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Login to Azure Container Registry
-        run: az acr login --name klonosai
-
-      - name: Build & push Docker image
-        run: |
-          docker build \
-            -f artifacts/api-server/Dockerfile \
-            -t $IMAGE:${{ github.sha }} \
-            -t $IMAGE:latest \
-            .
-          docker push $IMAGE:${{ github.sha }}
-          docker push $IMAGE:latest
-
       - name: Deploy to Container Apps
-        uses: azure/container-apps-deploy-action@v2
-        with:
-          resourceGroup:    klonosai-rg
-          containerAppName: klonosai-api
-          imageToDeploy:    ${{ env.IMAGE }}:${{ github.sha }}
+        run: |
+          az extension add --name containerapp --upgrade -y
+          az containerapp up \
+            --name klonosai-api \
+            --resource-group klonosai-rg \
+            --environment klonosai-env \
+            --source artifacts/api-server \
+            --ingress external \
+            --target-port 8080 \
+            --env-vars \
+              NODE_ENV=production \
+              SESSION_SECRET=${{ secrets.SESSION_SECRET }} \
+              DATABASE_URL=${{ secrets.DATABASE_URL }}
