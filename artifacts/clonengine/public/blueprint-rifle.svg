@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 580 160" width="580" height="160">
+  <g fill="none" stroke="#2a5fa8" stroke-width="0.9" opacity="1">
+    <!-- Muzzle brake -->
+    <rect x="8" y="54" width="14" height="16" rx="1"/>
+    <line x1="11" y1="56" x2="11" y2="68"/>
+    <line x1="14" y1="56" x2="14" y2="68"/>
+    <line x1="17" y1="56" x2="17" y2="68"/>
+    <!-- Barrel -->
+    <rect x="22" y="57" width="195" height="6" rx="1"/>
+    <!-- Gas block / front sight post -->
+    <rect x="78" y="51" width="10" height="7" rx="1"/>
+    <line x1="83" y1="46" x2="83" y2="51"/>
+    <!-- Handguard (Picatinny rails) -->
+    <rect x="108" y="50" width="110" height="18" rx="2"/>
+    <line x1="122" y1="50" x2="122" y2="68" stroke-width=".55"/>
+    <line x1="136" y1="50" x2="136" y2="68" stroke-width=".55"/>
+    <line x1="150" y1="50" x2="150" y2="68" stroke-width=".55"/>
+    <line x1="164" y1="50" x2="164" y2="68" stroke-width=".55"/>
+    <line x1="178" y1="50" x2="178" y2="68" stroke-width=".55"/>
+    <line x1="192" y1="50" x2="192" y2="68" stroke-width=".55"/>
+    <line x1="206" y1="50" x2="206" y2="68" stroke-width=".55"/>
+    <!-- Barrel nut / gas tube area -->
+    <rect x="218" y="52" width="10" height="12"/>
+    <!-- Upper receiver -->
+    <path d="M226 46 L326 46 L326 68 L226 68Z" rx="2"/>
+    <!-- Charging handle slot -->
+    <rect x="290" y="46" width="18" height="4"/>
+    <!-- Top rail (optic flat top) -->
+    <rect x="230" y="41" width="88" height="6" rx="1"/>
+    <!-- Ejection port / dust cover -->
+    <rect x="252" y="52" width="36" height="12" rx="1" stroke-dasharray="2,1" stroke-width=".6"/>
+    <!-- Lower receiver body -->
+    <path d="M226 68 L326 68 L326 86 L308 86 L302 96 L274 96 L270 86 L226 86Z"/>
+    <!-- Magazine well + mag -->
+    <path d="M234 86 L257 86 L266 128 L225 128 L234 86Z"/>
+    <!-- Magazine base plate -->
+    <rect x="224" y="126" width="43" height="5" rx="1"/>
+    <!-- Trigger guard -->
+    <path d="M270 86 L302 86 L304 100 L268 100 L270 86Z"/>
+    <!-- Trigger -->
+    <path d="M284 86 L288 99" stroke-width="1.1"/>
+    <!-- Safety lever -->
+    <rect x="232" y="72" width="16" height="4" rx="2"/>
+    <!-- Pistol grip -->
+    <path d="M308 86 L328 86 L338 110 L314 116 L308 86Z"/>
+    <line x1="320" y1="92" x2="324" y2="112" stroke-width=".5"/>
+    <!-- Buffer tube -->
+    <rect x="326" y="53" width="98" height="18" rx="5"/>
+    <!-- Adjustable stock -->
+    <path d="M420 50 L472 50 L480 59 L480 68 L475 73 L420 73Z"/>
+    <!-- Cheek weld / comb -->
+    <rect x="428" y="43" width="44" height="9" rx="2"/>
+    <!-- Butt plate -->
+    <rect x="476" y="54" width="6" height="20" rx="2"/>
+    <!-- Sling swivel point (front) -->
+    <circle cx="118" cy="76" r="3"/>
+    <!-- Sling swivel (rear) -->
+    <circle cx="422" cy="72" r="3"/>
+    <!-- ─── dimension annotations ─── -->
+    <line x1="8" y1="142" x2="482" y2="142" stroke-width=".4" stroke-dasharray="4,4"/>
+    <line x1="8" y1="138" x2="8" y2="146" stroke-width=".4"/>
+    <line x1="482" y1="138" x2="482" y2="146" stroke-width=".4"/>
+    <text x="242" y="152" font-family="monospace" font-size="7.5" fill="#2a5fa8" text-anchor="middle" stroke="none">OVERALL LENGTH: 840mm   |   BARREL: 370mm   |   SCALE 1:4</text>
+    <!-- top crosshair marks -->
+    <line x1="83" y1="18" x2="83" y2="36" stroke-width=".5" stroke-dasharray="2,2"/>
+    <line x1="74" y1="27" x2="92" y2="27" stroke-width=".5" stroke-dasharray="2,2"/>
+    <circle cx="83" cy="27" r="4" stroke-width=".5"/>
+  </g>
+</svg>
