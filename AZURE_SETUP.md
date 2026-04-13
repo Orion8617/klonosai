@@ -1,140 +1,82 @@
-# KlonOS — Azure Deployment Setup Guide
-## klonosai.io en Azure (gratis año 1)
-
-### Datos de tu cuenta
-- **Subscription ID**: `a5d0d823-7416-4a84-bb44-5f38118c0627`
-- **Subscription name**: Azure subscription 1
+# KlonOS — Azure Deployment Setup
+## Subscription: a5d0d823-7416-4a84-bb44-5f38118c0627
 
 ---
 
-## PASO 1 — Crear Service Principal
-
-Abre **Azure Cloud Shell** en portal.azure.com (ícono `>_` arriba a la derecha) y ejecuta:
-
-```bash
-az ad sp create-for-rbac \
-  --name "klonosai-github-deploy" \
-  --role contributor \
-  --scopes /subscriptions/a5d0d823-7416-4a84-bb44-5f38118c0627 \
-  --json-auth
-```
-
-Te dará un JSON así — **cópialo completo**:
-```json
-{
-  "clientId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-  "clientSecret": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-  "subscriptionId": "a5d0d823-7416-4a84-bb44-5f38118c0627",
-  "tenantId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-  "activeDirectoryEndpointUrl": "...",
-  "resourceManagerEndpointUrl": "...",
-  ...
-}
-```
+## ✅ HECHO
+- [x] Resource group `klonosai-rg` creado
+- [x] Service Principal `klonosai-github-deploy` creado (credenciales obtenidas)
+- [ ] Container Registry — pendiente
+- [ ] Static Web App — falló por región, re-crear con eastus2
+- [ ] GitHub repo — pendiente
+- [ ] GitHub Secrets — pendiente
 
 ---
 
-## PASO 2 — Crear Container Registry
+## PASO 1 — Completar recursos en Azure Cloud Shell
+
+Copia y pega todo esto junto en Cloud Shell:
 
 ```bash
-az group create --name klonosai-rg --location eastus
-
+# Container Registry
 az acr create \
   --resource-group klonosai-rg \
-  --name klonosai \
+  --name klonosairegistry \
   --sku Basic \
   --admin-enabled true
-```
 
----
-
-## PASO 3 — Crear Static Web App y obtener token
-
-```bash
+# Static Web App (eastus2 — región correcta para SWA)
 az staticwebapp create \
   --name klonosai-web \
   --resource-group klonosai-rg \
-  --location eastus \
+  --location eastus2 \
   --sku Free
 
-# Obtener token de deployment
+# Obtener token de deployment del Static Web App
 az staticwebapp secrets list \
   --name klonosai-web \
   --resource-group klonosai-rg \
-  --query "properties.apiKey" -o tsv
+  --query "properties.apiKey" \
+  --output tsv
 ```
+
+**Guarda el token que devuelva el último comando.**
 
 ---
 
-## PASO 4 — Crear repositorio en GitHub
+## PASO 2 — Crear repositorio en GitHub
 
-1. Ve a github.com → New repository → nombre: `klonosai`
-2. En Replit Terminal ejecuta:
-
-```bash
-git remote add github https://github.com/TU_USUARIO/klonosai.git
-git push github main
-```
+1. Ve a [github.com/new](https://github.com/new)
+2. Nombre: `klonosai`
+3. Privado o público — tu elección
+4. Crear repositorio
 
 ---
 
-## PASO 5 — Agregar secrets a GitHub
+## PASO 3 — Agregar estos secrets en GitHub
 
-Ve a tu repo GitHub → Settings → Secrets and variables → Actions → New repository secret:
+Ve al repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**
 
-| Secret | Valor |
+| Secret Name | Valor |
 |---|---|
-| `AZURE_CREDENTIALS` | El JSON completo del Paso 1 |
 | `AZURE_SUBSCRIPTION_ID` | `a5d0d823-7416-4a84-bb44-5f38118c0627` |
-| `AZURE_SWA_TOKEN` | El token del Paso 3 |
+| `AZURE_TENANT_ID` | `08b93dd8-1e5e-4d25-9136-ff8127eea864` |
+| `AZURE_CLIENT_ID` | `28c058c7-626b-46ea-a548-67c007cea42d` |
+| `AZURE_CLIENT_SECRET` | *(el clientSecret del JSON que obtuviste)* |
+| `AZURE_CREDENTIALS` | *(el JSON completo que obtuviste del SP)* |
+| `AZURE_SWA_TOKEN` | *(el token del último comando del Paso 1)* |
 
 ---
 
-## PASO 6 — Primer deploy
+## PASO 4 — Conectar Replit → GitHub
 
-```bash
-# En GitHub Actions → Run workflow → azure-infra.yml (infraestructura)
-# Luego → azure-frontend.yml (landing)
-# Luego → azure-api.yml (API)
-```
-
----
-
-## PASO 7 — Dominio klonosai.io
-
-### Registrar dominio
-Ir a [porkbun.com](https://porkbun.com) → buscar `klonosai.io` → comprar (~$12/año)
-
-### Conectar a Azure Static Web Apps
-```bash
-az staticwebapp hostname set \
-  --name klonosai-web \
-  --resource-group klonosai-rg \
-  --hostname klonosai.io
-```
-
-### DNS Records en tu registrador
-| Tipo | Nombre | Valor |
-|---|---|---|
-| CNAME | `www` | `klonosai-web.azurestaticapps.net` |
-| ALIAS/ANAME | `@` | `klonosai-web.azurestaticapps.net` |
-| CNAME | `api` | `klonosai-api.{hash}.eastus.azurecontainerapps.io` |
+Dime tu usuario de GitHub y yo ejecuto el push desde aquí.
 
 ---
 
 ## Arquitectura final
-
 ```
-klonosai.io          → Azure Static Web Apps (FREE)
-www.klonosai.io      → Azure Static Web Apps (FREE)  
-api.klonosai.io      → Azure Container Apps (scale to 0)
-db: PostgreSQL       → Azure DB Flexible Server (free 12 meses)
+klonosai.io     → Azure Static Web Apps FREE (eastus2)
+api.klonosai.io → Azure Container Apps (scale to 0)
+                → Azure DB PostgreSQL (free 12 meses)
 ```
-
-## Costo estimado año 1
-- Static Web Apps Free: $0
-- Container Apps (low traffic): ~$0–5/mes
-- PostgreSQL Flexible Server: $0 (free 12 meses)
-- Container Registry Basic: ~$5/mes
-- DNS Zone klonosai.io: ~$0.50/mes
-- **TOTAL: cubierto por los $200 de crédito inicial**
