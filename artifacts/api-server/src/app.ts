@@ -1,9 +1,10 @@
 import express, { type Express } from "express";
 import cors from "cors";
-import session from "express-session";
+import { toNodeHandler } from "better-auth/node";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { auth } from "./lib/auth";
 
 const app: Express = express();
 
@@ -11,25 +12,9 @@ const app: Express = express();
 // work correctly when TLS is terminated upstream.
 app.set("trust proxy", 1);
 
-const SESSION_SECRET = process.env["SESSION_SECRET"];
-if (process.env["NODE_ENV"] === "production" && !SESSION_SECRET) {
-  throw new Error("SESSION_SECRET environment variable must be set in production");
-}
-const secret = SESSION_SECRET ?? "zerolag-dev-only-change-before-prod";
-
-app.use(
-  session({
-    secret,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env["NODE_ENV"] === "production",
-      httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      sameSite: "lax",
-    },
-  }),
-);
+// ── better-auth: must be mounted BEFORE express.json() ────────────────────────
+// Handles all of /api/auth/* — registration, login, passkey, sessions, OAuth
+app.use("/api/auth", toNodeHandler(auth));
 
 app.use(
   pinoHttp({

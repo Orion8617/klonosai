@@ -7,7 +7,9 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@tanstack/react-query": "catalog:"
+    "@better-auth/passkey": "^1.6.2",
+    "@tanstack/react-query": "catalog:",
+    "better-auth": "^1.6.2"
   },
   "peerDependencies": {
     "react": ">=18"
