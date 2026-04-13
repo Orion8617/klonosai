@@ -305,21 +305,42 @@ function initHUD() {
   updateHUD(0);
 }
 
+function makeRow(label, value, valueColor, suffix) {
+  const row = document.createElement('div');
+  const lbl = document.createTextNode(label + ': ');
+  const val = document.createElement('span');
+  val.style.color = valueColor;
+  val.textContent = value;
+  row.appendChild(lbl);
+  row.appendChild(val);
+  if (suffix) row.appendChild(document.createTextNode(suffix));
+  return row;
+}
+
 function updateHUD(pressure) {
   if (!hud) return;
   const phaseColor = gammaBurst ? '#C89600' : '#00C896';
   const phaseLabel = gammaBurst ? '40Hz ⚡ GAMMA' : '7.83Hz SCHUMANN';
   const presColor  = pressure > VIGESIMAL_WEIGHT ? '#C89600' : '#00C896';
+  const wasteColor = wasteScore > 70 ? '#E05A3A' : '#00C896';
 
-  hud.innerHTML = `
-    <div style="font-weight:700;font-size:10px;letter-spacing:2px;margin-bottom:5px;color:#00C896;">K5 — SNN ACTIVA</div>
-    <div>FASE: <span style="color:${phaseColor}">${phaseLabel}</span></div>
-    <div>∆ PASCAL: <span style="color:${presColor}">${pressure}</span></div>
-    <div>WASTE: <span style="color:${wasteScore > 70 ? '#E05A3A' : '#00C896'}">${wasteScore}</span>/100</div>
-    <div>HEAP: <span style="color:#00C896">${heapRecovered.toFixed(1)}</span>MB</div>
-    <div>PURGED: <span style="color:#E05A3A">${totalPurged}</span> nodes</div>
-    <div style="color:#2A5040;margin-top:4px;font-size:7px;">TICK #${tick}</div>
-  `;
+  while (hud.firstChild) hud.removeChild(hud.firstChild);
+
+  const header = document.createElement('div');
+  header.style.cssText = 'font-weight:700;font-size:10px;letter-spacing:2px;margin-bottom:5px;color:#00C896;';
+  header.textContent = 'K5 — SNN ACTIVA';
+  hud.appendChild(header);
+
+  hud.appendChild(makeRow('FASE', phaseLabel, phaseColor, ''));
+  hud.appendChild(makeRow('\u2206 PASCAL', String(pressure), presColor, ''));
+  hud.appendChild(makeRow('WASTE', String(wasteScore), wasteColor, '/100'));
+  hud.appendChild(makeRow('HEAP', heapRecovered.toFixed(1), '#00C896', 'MB'));
+  hud.appendChild(makeRow('PURGED', String(totalPurged), '#E05A3A', ' nodes'));
+
+  const footer = document.createElement('div');
+  footer.style.cssText = 'color:#2A5040;margin-top:4px;font-size:7px;';
+  footer.textContent = 'TICK #' + tick;
+  hud.appendChild(footer);
 }
 
 // ─── MAIN SWARM LOOP ─────────────────────────────────────────────────────────
