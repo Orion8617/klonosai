@@ -114,7 +114,8 @@ export function CryptoPayModal({ open, plan, onClose }: Props) {
 
   // ── Resolve Ethereum provider ──────────────────────────────────────────────
   const getEthProv = useCallback(() => {
-    const w = window as { ethereum?: { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> }; phantom?: { ethereum?: unknown } };
+    type EthProv = { request: (a: { method: string; params?: unknown[] }) => Promise<unknown> };
+    const w = window as { ethereum?: EthProv; phantom?: { ethereum?: EthProv } };
     return w.phantom?.ethereum ?? w.ethereum ?? (phantomRef.current?.ethereum as typeof w.ethereum | undefined) ?? null;
   }, []);
 

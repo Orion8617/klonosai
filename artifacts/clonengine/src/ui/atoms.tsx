@@ -32,6 +32,7 @@ export function Counter({ target, suffix, dec = 0 }: { target: number; suffix: s
         done.current = true;
         const dur = 1500, s = performance.now();
         function f(n: number) {
+          if (!el) return;
           const p = Math.min((n - s) / dur, 1);
           const v = target * (p < .5 ? 2 * p * p : 1 - 2 * (1 - p) * (1 - p));
           el.textContent = v.toFixed(dec) + suffix;
