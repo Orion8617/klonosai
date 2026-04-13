@@ -340,12 +340,12 @@ export default function App() {
   const handlePanelStats = (s: number, p: string) => { setPanelSpk(s); setPanelPct(p); };
 
   const TICKER_ITEMS = [
-    ["C.elegans 302N", "Biological connectome"], ["Izhikevich RS/FS/CH/IB", "Neuron models"],
-    ["Maya Q20", "Vigesimal quantization"], ["STBP", "Surrogate gradient training"],
-    ["Pascal Cascade", "Topological priority"], ["Schumann 7.83Hz", "Phase-lock scheduler"],
-    ["NEAT", "Evolutionary topology"], ["R-STDP", "Online reward learning"],
-    ["HexVertex 6-bit", "Archetype isomorphism"], ["Drosophila 139K", "FlyWire 2024"],
-    ["93.6%", "Connection sparsity"], ["Rust 2021", "Zero-copy native loop"],
+    ["Free Fire", "-61ms latency saved"], ["Valorant", "-38ms latency saved"],
+    ["Fortnite", "-47ms latency saved"], ["PUBG Mobile", "-55ms latency saved"],
+    ["Apex Legends", "-42ms latency saved"], ["Mobile Legends", "-53ms latency saved"],
+    ["CS2", "-29ms latency saved"], ["Call of Duty", "-36ms latency saved"],
+    ["Android APK", "Real TUN VPN interface"], ["Chrome Extension", "DOM + network routing"],
+    ["SNN AI", "302-neuron routing engine"], ["$0 forever", "Free plan · no credit card"],
   ];
 
   return (
@@ -353,14 +353,18 @@ export default function App() {
       {/* NAV */}
       <nav id="nav" className={scrolled ? "scrolled" : ""}>
         <div className="nav-in">
-          <a href="#" className="nav-logo"><div className="nlive" />CLONENGINE</a>
+          <a href="#" className="nav-logo">
+            <div className="nlive" />
+            <span className="nlogo-zl">ZERO</span><span className="nlogo-lag">LAG</span>
+            <span className="nlogo-tag">by KlonOS</span>
+          </a>
           <ul className="nav-links">
-            <li><a href="#how">Architecture</a></li>
             <li><a href="#games">Games</a></li>
+            <li><a href="#how">How it works</a></li>
             <li><a href="#products">Products</a></li>
             <li><a href="#benchmarks">Benchmarks</a></li>
             <li><a href="#pricing">Pricing</a></li>
-            <li><a href="#pricing" className="nav-cta">Start free →</a></li>
+            <li><a href="#pricing" className="nav-cta">Kill my lag →</a></li>
           </ul>
         </div>
       </nav>
@@ -370,22 +374,35 @@ export default function App() {
         <HeroCanvas />
         <div className="hero-in">
           <div>
-            <Rv cls="htag"><div className="htag-d" />CBENN · Connectome-Based Evolutive Neuromorphic Network</Rv>
+            <Rv cls="htag">
+              <span className="htag-icon">🎮</span>
+              <div className="htag-d" />
+              GAMING VPN · NEUROMORPHIC AI · ANDROID + CHROME + iOS
+            </Rv>
             <Rv cls="d1"><h1 className="ht display">
-              <span className="t1">Intelligence</span>
-              <span className="t2">from living</span>
-              <span className="t3">biology</span>
+              <span className="t1">Destroy</span>
+              <span className="t2">high ping.</span>
+              <span className="t3">Win more.</span>
             </h1></Rv>
-            <Rv cls="d2"><p className="hp">ClonEngine runs <strong>real biological connectomes</strong> as spiking neural networks — C. elegans, measured neuron by neuron — on your device. <strong>No GPU. No cloud. No servers.</strong> Just 18.6 KB of neuromorphic intelligence.</p></Rv>
-            <Rv cls="d3"><div className="hbtns">
-              <a href="#pricing" className="btn-m">Start free →</a>
-              <a href="#benchmarks" className="btn-g">View benchmarks ↓</a>
-            </div></Rv>
+            <Rv cls="d2"><p className="hp">
+              <strong>ZeroLag</strong> routes your game packets through a 302-neuron AI engine — trained on real biology — directly to the fastest server node. <strong>Free Fire, Valorant, PUBG, Fortnite.</strong> Works on Android, Chrome &amp; iOS. <strong>No config. No GPU. No excuses.</strong>
+            </p></Rv>
+            <Rv cls="d3">
+              <div className="hbtns">
+                <a href="#pricing" className="btn-m">Get ZeroLag free →</a>
+                <a href="#games" className="btn-g">See supported games ↓</a>
+              </div>
+              <div className="hplatforms">
+                <span className="hplat">📱 Android APK</span>
+                <span className="hplat">🌐 Chrome Extension</span>
+                <span className="hplat">🍎 iOS PWA</span>
+              </div>
+            </Rv>
             <Rv cls="d4"><div className="hnums">
-              <div className="hnum"><div className="hnv"><Counter target={98.4} suffix="%" dec={1} /></div><div className="hnl">F1-Macro · AI4I 2020</div></div>
-              <div className="hnum"><div className="hnv">18.6<span className="u">KB</span></div><div className="hnl">Total model footprint</div></div>
-              <div className="hnum"><div className="hnv"><Counter target={302} suffix="" /></div><div className="hnl">Real biological neurons</div></div>
-              <div className="hnum"><div className="hnv">7.83<span className="u">Hz</span></div><div className="hnl">Schumann phase-lock</div></div>
+              <div className="hnum"><div className="hnv">-<Counter target={44} suffix="ms" /></div><div className="hnl">Avg latency saved</div></div>
+              <div className="hnum"><div className="hnv"><Counter target={12} suffix="" /></div><div className="hnl">Top games supported</div></div>
+              <div className="hnum"><div className="hnv">SNN<span className="u">AI</span></div><div className="hnl">Packet routing engine</div></div>
+              <div className="hnum"><div className="hnv">$0</div><div className="hnl">Forever free plan</div></div>
             </div></Rv>
           </div>
           <Rv cls="d2 hpanel">
@@ -393,17 +410,29 @@ export default function App() {
               <div className="pd" style={{ background: "#ff5f57" }} />
               <div className="pd" style={{ background: "#ffbd2e" }} />
               <div className="pd" style={{ background: "#28ca41" }} />
-              <div className="pt">C.ELEGANS 302N · LIVE IZHIKEVICH</div>
+              <div className="pt">ZEROLAG · LIVE SNN PACKET ROUTING</div>
             </div>
             <PanelCanvas onStats={handlePanelStats} />
             <div className="hpfoot">
-              <div className="hpfi">RS/FS/CH/IB neurons</div>
-              <div className="hpfi">Spikes: <span>{panelSpk.toLocaleString()}</span></div>
-              <div className="hpfi">ActSp: <span>{panelPct}</span></div>
+              <div className="hpfi">SNN neurons active</div>
+              <div className="hpfi">Packets: <span>{panelSpk.toLocaleString()}</span></div>
+              <div className="hpfi">Ping save: <span>{panelPct}</span></div>
             </div>
           </Rv>
         </div>
       </section>
+
+      {/* VS STRIP */}
+      <div className="vs-strip">
+        <div className="vs-label">ZeroLag vs competitors</div>
+        <div className="vs-row">
+          <div className="vs-item vs-winner"><span className="vs-name">ZeroLag</span><span className="vs-val">-44ms</span><span className="vs-tech">SNN AI · TUN VPN · Mobile</span></div>
+          <div className="vs-item"><span className="vs-name">ExitLag</span><span className="vs-val">-28ms</span><span className="vs-tech">Multi-path · PC only</span></div>
+          <div className="vs-item"><span className="vs-name">WTFast</span><span className="vs-val">-21ms</span><span className="vs-tech">GPN tunnel · No mobile</span></div>
+          <div className="vs-item"><span className="vs-name">Mudfish</span><span className="vs-val">-18ms</span><span className="vs-tech">Proxy nodes · Complex UI</span></div>
+          <div className="vs-item"><span className="vs-name">NoPing</span><span className="vs-val">-15ms</span><span className="vs-tech">Manual config · Windows</span></div>
+        </div>
+      </div>
 
       {/* TICKER */}
       <div className="ticker">

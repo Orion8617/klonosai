@@ -21,7 +21,10 @@ section{padding:120px 0;position:relative}
 #nav{position:fixed;top:0;left:0;right:0;z-index:1000;padding:0 28px;transition:background .4s,border-color .4s}
 #nav.scrolled{background:rgba(2,1,8,.9);backdrop-filter:blur(24px);border-bottom:1px solid var(--border)}
 .nav-in{max-width:1160px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
-.nav-logo{font-family:'Unbounded',sans-serif;font-size:15px;font-weight:900;color:var(--green);letter-spacing:.1em;text-decoration:none;display:flex;align-items:center;gap:10px}
+.nav-logo{font-family:'Unbounded',sans-serif;font-size:15px;font-weight:900;letter-spacing:.05em;text-decoration:none;display:flex;align-items:center;gap:8px}
+.nlogo-zl{color:var(--green)}
+.nlogo-lag{color:var(--text)}
+.nlogo-tag{font-family:'Fira Code',monospace;font-size:9px;font-weight:400;color:var(--muted);letter-spacing:.15em;margin-left:2px;padding:2px 7px;border:1px solid var(--border);border-radius:10px}
 .nlive{width:7px;height:7px;border-radius:50%;background:var(--green);animation:glow 2s ease-in-out infinite}
 @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(0,255,148,.5)}50%{box-shadow:0 0 0 7px rgba(0,255,148,0)}}
 .nav-links{display:flex;align-items:center;gap:36px;list-style:none}
@@ -36,11 +39,16 @@ section{padding:120px 0;position:relative}
 .hero-in{position:relative;z-index:2;max-width:1160px;margin:0 auto;padding:80px 28px;display:grid;grid-template-columns:1fr 460px;gap:64px;align-items:center}
 .htag{display:inline-flex;align-items:center;gap:8px;background:rgba(0,255,148,.07);border:1px solid rgba(0,255,148,.2);border-radius:20px;padding:6px 14px;font-family:'Fira Code',monospace;font-size:10px;letter-spacing:.15em;color:var(--green);margin-bottom:28px}
 .htag-d{width:5px;height:5px;border-radius:50%;background:var(--green);animation:glow 1.5s infinite}
+.htag-icon{font-size:13px;line-height:1}
 h1.ht{font-size:clamp(52px,6.5vw,86px);margin-bottom:24px}
-.t1{color:var(--text);display:block}.t2{display:block;background:linear-gradient(135deg,var(--green) 0%,var(--cyan) 50%,var(--violet) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}.t3{color:var(--text);display:block;opacity:.2}
+.t1{color:var(--text);display:block}
+.t2{display:block;background:linear-gradient(135deg,var(--green) 0%,var(--cyan) 50%,var(--violet) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.t3{color:var(--green);display:block;opacity:.55}
+.hplatforms{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.hplat{font-family:'Fira Code',monospace;font-size:10px;color:var(--muted);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:4px 12px;letter-spacing:.06em}
 .hp{font-size:17px;color:var(--muted);max-width:460px;line-height:1.75;margin-bottom:40px;font-weight:300}
 .hp strong{color:var(--text);font-weight:500}
-.hbtns{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:56px}
+.hbtns{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
 .btn-m{display:inline-flex;align-items:center;gap:8px;background:var(--green);color:#000;padding:14px 28px;border-radius:4px;font-family:'Epilogue',sans-serif;font-size:14px;font-weight:700;text-decoration:none;transition:all .2s;cursor:none}
 .btn-m:hover{background:var(--green2);transform:translateY(-2px);box-shadow:0 12px 32px rgba(0,255,148,.25)}
 .btn-g{display:inline-flex;align-items:center;gap:8px;background:transparent;color:var(--muted);padding:14px 24px;border-radius:4px;font-family:'Epilogue',sans-serif;font-size:14px;font-weight:400;text-decoration:none;border:1px solid rgba(255,255,255,.1);cursor:none;transition:all .2s}
@@ -60,6 +68,19 @@ h1.ht{font-size:clamp(52px,6.5vw,86px);margin-bottom:24px}
 .hpfoot{padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between}
 .hpfi{font-family:'Fira Code',monospace;font-size:9px;color:var(--muted)}
 .hpfi span{color:var(--green)}
+
+/* VS STRIP */
+.vs-strip{background:var(--bg1);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:20px 28px;overflow-x:auto}
+.vs-label{font-family:'Fira Code',monospace;font-size:9px;letter-spacing:.2em;color:var(--muted);text-align:center;margin-bottom:16px;text-transform:uppercase}
+.vs-row{display:flex;gap:12px;max-width:1160px;margin:0 auto;align-items:stretch;min-width:720px}
+.vs-item{flex:1;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 18px;display:flex;flex-direction:column;gap:4px;position:relative}
+.vs-winner{background:linear-gradient(135deg,rgba(0,255,148,.08) 0%,rgba(34,211,238,.05) 100%);border-color:rgba(0,255,148,.35)}
+.vs-winner::before{content:'★ WINNER';position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--green);color:#000;font-family:'Fira Code',monospace;font-size:8px;font-weight:700;letter-spacing:.15em;padding:2px 10px;border-radius:8px;white-space:nowrap}
+.vs-name{font-family:'Unbounded',sans-serif;font-size:12px;font-weight:700;color:var(--text)}
+.vs-winner .vs-name{color:var(--green)}
+.vs-val{font-family:'Unbounded',sans-serif;font-size:22px;font-weight:900;color:var(--green);line-height:1}
+.vs-item:not(.vs-winner) .vs-val{color:var(--muted);font-size:18px}
+.vs-tech{font-family:'Fira Code',monospace;font-size:9px;color:var(--muted);letter-spacing:.08em}
 
 /* TICKER */
 .ticker{border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(0,255,148,.025);padding:14px 0;overflow:hidden}
