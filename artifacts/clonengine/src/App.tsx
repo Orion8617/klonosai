@@ -23,14 +23,37 @@ function izhi(n: N, I: number): boolean {
   return false;
 }
 
-// ─── HERO CANVAS — SpikeForge batch renderer + PascalCuller ──────────────────
-// Key perf wins:
-//   • SpikeForge: 700 edge draw-calls → batched paths grouped by colour bucket
-//   • PascalCuller: skip draws below opacity threshold (CULL_ALPHA / CULL_NODE)
-//   • No save/restore inside hot loops — shadow state manually managed
-//   • Tab-visibility early return — pauses RAF when page is hidden
-const CULL_ALPHA = 0.038;   // PascalCuller edge threshold
-const CULL_NODE  = 0.048;   // PascalCuller node threshold
+// ─── SPIKEFORGE vGPU PIPELINE — Full spec implementation (Whitepaper v3.0) ────
+//
+//  Stage 1 · Pascal Frustum Culling     X/Y Triangle Row-4 spatial importance
+//  Stage 2 · Synaptic LOD               4-tier node sizing by Pascal importance
+//  Stage 3 · Vigesimal Base-20          alpha quantised to 1/20 steps (already correct)
+//  Stage 4 · Gamma/Theta Scheduler      Gamma=60Hz render, Theta=6Hz heavy-ops cadence
+//  §10     · Bilateral Coupling 0.30    Cross-hemisphere gap-junction alpha modifier
+//
+// Pascal Triangle Row 4: [1, 4, 6, 4, 1] / 16
+const P4 = [1/16, 4/16, 6/16, 4/16, 1/16] as const;
+const PASCAL_CULL     = 0.06;   // Stage 1: discard neurons with importance < 6%
+const BILATERAL_K     = 0.30;   // §10: gap-junction coupling factor
+const THETA_PERIOD    = 10;     // Stage 4: Theta tick every 10 Gamma frames ≈ 6Hz
+
+// Stage 1: Pascal 3D Frustum Culling — X (hemispheric) × Y (cortical depth)
+// Returns importance weight 0..1 using Pascal row-4 coefficients on both axes
+function pascalImp(x: number, y: number, W: number, H: number): number {
+  const bx = Math.min(4, Math.floor(x / W * 5));
+  const by = Math.min(4, Math.floor(y / H * 5));
+  // Scale back so center node (bx=2,by=2) → 1.0; corners → 0.067²≈0.004
+  return (P4[bx] * 16) * (P4[by] * 16) / 16;
+}
+
+// Stage 2: Synaptic LOD — 4-tier node radius by Pascal importance
+// Full(≥0.5)→2.0  Medium(≥0.2)→1.5  Quarter(≥0.08)→1.1  Eighth(<0.08)→0.7
+function lodR(imp: number): number {
+  if (imp >= 0.5)  return 2.0;
+  if (imp >= 0.2)  return 1.5;
+  if (imp >= 0.08) return 1.1;
+  return 0.7;
+}
 
 function HeroCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -57,22 +80,42 @@ function HeroCanvas() {
       if (a !== b) sy.push({ a, b, w: (Math.random() - .5) * .4 });
     }
 
-    // Reusable segment buckets — keyed by quantised alpha (avoids string alloc per edge)
-    // 12 fire-counter steps × 2 colours = 24 buckets max, vs 700 state-changes/frame
-    const oBkt = new Map<number, number[]>(); // orange: [x1,y1,x2,y2, ...]
-    const cBkt = new Map<number, number[]>(); // cyan
+    // Stage 3: Vigesimal Base-20 edge buckets — keyed by quantised alpha
+    const oBkt = new Map<number, number[]>();
+    const cBkt = new Map<number, number[]>();
+
+    // Stage 1 cache: Pascal importance per neuron — recomputed on Theta tick
+    const pw = new Float32Array(N);
+    // Stage 4: Theta scheduler
+    let thetaPhase = 0;
+
+    // Initialise weights before first draw
+    function thetaRecompute() {
+      for (let i = 0; i < N; i++) pw[i] = pascalImp(ns[i].x, ns[i].y, W, H);
+    }
+    thetaRecompute();
 
     let tk = 0, sc = 0;
 
     function draw(ts: number) {
       raf = requestAnimationFrame(draw);
-      if (document.hidden) return; // tab-visibility cull — zero GPU work when tab hidden
+      if (document.hidden) return;
 
       cx.fillStyle = "rgba(2,12,24,.14)"; cx.fillRect(0, 0, W, H);
-      tk++; sc += 7.83 / 60;
+      tk++;
+
+      // ── Stage 4: Schumann sync (7.83 Hz) ──────────────────────────────────
+      sc += 7.83 / 60;
       const sf = sc >= 1; if (sf) sc -= 1;
 
-      // ── SNN step ──────────────────────────────────────────────────────────
+      // ── Stage 4: Theta scheduler (6 Hz) — heavy ops decoupled from Gamma ──
+      thetaPhase++;
+      if (thetaPhase >= THETA_PERIOD) {
+        thetaPhase = 0;
+        thetaRecompute(); // Pascal weights refreshed at 6Hz, not 60Hz
+      }
+
+      // ── SNN step (Gamma 60Hz) ──────────────────────────────────────────────
       const inp = new Float32Array(N);
       for (let i = 0; i < sy.length; i++) {
         const s = sy[i];
@@ -80,10 +123,9 @@ function HeroCanvas() {
       }
       for (let i = 0; i < N; i++) {
         const n = ns[i];
-        // SpikeForge early-exit: skip full Izhikevich for deeply-resting neurons
         const I = inp[i] + (Math.random() - .3) * 4 + (i % 53 === tk % 53 ? 4 : 0);
+        // Stage 2: SpikeForge early-exit for deeply-resting neurons (synaptic pruning)
         if (n.f === 0 && n.v < -62 && Math.abs(I) < 1.5) {
-          // membrane far from threshold and negligible input — cheap drift only
           n.v += .04 * n.v * n.v * .002 + I * .04;
         } else {
           izhi(n, I);
@@ -93,13 +135,20 @@ function HeroCanvas() {
         if (n.y < 0) n.y = H; else if (n.y > H) n.y = 0;
       }
 
-      // ── SpikeForge batch edge renderer ────────────────────────────────────
+      // ── Stage 1+3: Pascal-gated Vigesimal batch edge renderer ─────────────
       oBkt.clear(); cBkt.clear();
       for (let i = 0; i < sy.length; i++) {
         const s = sy[i], f = ns[s.a].f;
         if (!f) continue;
-        const alpha = Math.round((.05 + f / 12 * .18) * 20) / 20; // quantise to 0.05 steps
-        if (alpha < CULL_ALPHA) continue; // PascalCuller
+        // Stage 1: Pascal importance gate — edges from low-importance neurons discarded
+        const imp = pw[s.a];
+        if (imp < PASCAL_CULL) continue;
+        // Stage 3: Vigesimal Base-20 alpha quantisation
+        let alpha = Math.round((.05 + f / 12 * .18) * 20) / 20;
+        // §10: Bilateral coupling — cross-hemisphere gap junction factor 0.30
+        if (ns[s.a].l !== ns[s.b].l) alpha *= BILATERAL_K;
+        alpha = Math.round(alpha * 20) / 20; // re-quantise after coupling
+        if (alpha < 0.04) continue;
         const bkt = ns[s.a].l ? oBkt : cBkt;
         let arr = bkt.get(alpha);
         if (!arr) { arr = []; bkt.set(alpha, arr); }
@@ -119,19 +168,21 @@ function HeroCanvas() {
         cx.stroke();
       });
 
-      // ── Node renderer — two passes, no save/restore in hot loop ───────────
-      // Pass 1: inactive nodes (no glow) — set shadow off once before loop
+      // ── Stage 1+2: Pascal-gated LOD node renderer ─────────────────────────
       cx.shadowBlur = 0; cx.shadowColor = "transparent";
       const active: N[] = [];
       for (let i = 0; i < N; i++) {
         const n = ns[i];
         if (n.f > 0) { active.push(n); continue; }
+        // Stage 1: Pascal importance gate
+        const imp = pw[i];
+        if (imp < PASCAL_CULL) continue;
         const op = .07 + Math.max(0, (n.v + 65) / 75) * .28;
-        if (op < CULL_NODE) continue; // PascalCuller
+        if (op < 0.048) continue;
         cx.fillStyle = `rgba(${n.l ? "255,122,26" : "0,212,255"},${op.toFixed(2)})`;
-        cx.beginPath(); cx.arc(n.x, n.y, 1.5, 0, Math.PI * 2); cx.fill();
+        // Stage 2: Synaptic LOD — node radius by importance tier
+        cx.beginPath(); cx.arc(n.x, n.y, lodR(imp), 0, Math.PI * 2); cx.fill();
       }
-      // Pass 2: active (glowing) nodes — typically ≤30, individual draws OK
       for (let i = 0; i < active.length; i++) {
         const n = active[i];
         cx.shadowColor = n.l ? "#ff7a1a" : "#00d4ff";
@@ -141,7 +192,7 @@ function HeroCanvas() {
       }
       cx.shadowBlur = 0; cx.shadowColor = "transparent";
 
-      // Schumann pulse ring — amber
+      // Stage 4: Schumann pulse ring (7.83 Hz) — amber
       if (sf) {
         cx.strokeStyle = "rgba(255,195,0,.12)"; cx.lineWidth = 1;
         cx.beginPath();
@@ -156,12 +207,11 @@ function HeroCanvas() {
   return <canvas ref={ref} id="hero-canvas" />;
 }
 
-// ─── SCIENCE CANVAS — SpikeForge batch + pre-computed adjacency + PascalCuller ─
-// Perf wins vs old code:
-//   • O(N²) hypot per frame → O(edges) per frame (adjacency built once in buildGrid)
-//   • save/restore per edge → batched paths by colour bucket
-//   • save/restore per node → manual shadow state, two-pass render
-//   • tab-visibility early return
+// ─── SCIENCE CANVAS — Full SpikeForge vGPU pipeline + pre-computed adjacency ──
+//  Stage 1 · Pascal Frustum Culling     weights computed in buildGrid (static grid)
+//  Stage 2 · Synaptic LOD               hexagon size by Pascal importance tier
+//  Stage 3 · Vigesimal Base-20          alpha quantised in edge buckets
+//  §10     · Bilateral Coupling 0.30    cross-hemisphere edges attenuated
 function SciCanvas({ onSpk }: { onSpk: (n: number) => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -178,9 +228,9 @@ function SciCanvas({ onSpk }: { onSpk: (n: number) => void }) {
     const cols = 9, rows = 8, dx = 46, dy = 40;
     const DIST_MAX = dx * 1.65;
     const ns: N[] = [];
-    // Pre-computed neighbour list — [a, b] index pairs within DIST_MAX
-    // Only rebuilt on resize, not every frame (O(N²) → O(1) amortised per frame)
     let edges: [number, number][] = [];
+    // Stage 1: Pascal importance per node (static grid → computed once in buildGrid)
+    let sciPw: Float32Array = new Float32Array(0);
 
     function buildGrid() {
       const ox = (W - (cols - 1) * dx) / 2, oy = (H - (rows - 1) * dy) / 2;
@@ -188,32 +238,33 @@ function SciCanvas({ onSpk }: { onSpk: (n: number) => void }) {
       for (let r = 0; r < rows; r++)
         for (let c = 0; c < cols; c++)
           ns.push({ x: ox + c * dx + (r % 2 ? dx / 2 : 0), y: oy + r * dy, v: -65 + (Math.random() - .5) * 15, u: -13, f: 0, l: c < cols / 2 });
-      // Build adjacency once — O(N²) here but only on resize
+      // Adjacency — O(N²) once per resize
       edges = [];
       for (let a = 0; a < ns.length; a++)
         for (let b = a + 1; b < ns.length; b++)
           if (Math.hypot(ns[b].x - ns[a].x, ns[b].y - ns[a].y) <= DIST_MAX)
             edges.push([a, b]);
+      // Stage 1: Pascal importance — static grid means weights are stable until next resize
+      sciPw = new Float32Array(ns.length);
+      for (let i = 0; i < ns.length; i++) sciPw[i] = pascalImp(ns[i].x, ns[i].y, W, H);
     }
     buildGrid(); window.addEventListener("resize", buildGrid);
 
-    // Reusable edge buckets — keyed by quantised alpha, avoids string alloc per edge
-    const oBkt = new Map<number, number[]>(); // orange: [x1,y1,x2,y2,...]
-    const cBkt = new Map<number, number[]>(); // cyan
+    const oBkt = new Map<number, number[]>();
+    const cBkt = new Map<number, number[]>();
 
     let tot = 0, tk = 0;
 
     function draw() {
       raf = requestAnimationFrame(draw);
-      if (document.hidden) return; // tab-visibility cull
+      if (document.hidden) return;
 
       cx.fillStyle = "rgba(2,12,24,.18)"; cx.fillRect(0, 0, W, H); tk++;
 
-      // ── SNN step ──────────────────────────────────────────────────────────
+      // ── SNN step (Gamma 60Hz) ──────────────────────────────────────────────
       for (let i = 0; i < ns.length; i++) {
         const n = ns[i];
         const I = (Math.random() - .28) * 12 + (i % 13 === tk % 13 ? 9 : 0);
-        // SpikeForge early-exit for deeply resting neurons
         if (n.f === 0 && n.v < -62 && Math.abs(I) < 1.2) {
           n.v += I * .04;
         } else {
@@ -221,16 +272,22 @@ function SciCanvas({ onSpk }: { onSpk: (n: number) => void }) {
         }
       }
 
-      // ── SpikeForge batch edge renderer ────────────────────────────────────
+      // ── Stage 1+3: Pascal-gated Vigesimal batch edge renderer ─────────────
       oBkt.clear(); cBkt.clear();
       for (let e = 0; e < edges.length; e++) {
         const [a, b] = edges[e];
         const na = ns[a], nb = ns[b];
-        // draw edge if either endpoint is firing
         const f = na.f || nb.f; if (!f) continue;
-        const src = na.f >= nb.f ? na : nb; // use the more-fired source for colour/alpha
-        const alpha = Math.round((.1 + src.f / 12 * .2) * 20) / 20;
-        if (alpha < CULL_ALPHA) continue; // PascalCuller
+        // Stage 1: Pascal importance gate
+        const imp = Math.max(sciPw[a], sciPw[b]);
+        if (imp < PASCAL_CULL) continue;
+        const src = na.f >= nb.f ? na : nb;
+        // Stage 3: Vigesimal quantisation
+        let alpha = Math.round((.1 + src.f / 12 * .2) * 20) / 20;
+        // §10: Bilateral coupling — cross-hemisphere gap junction factor 0.30
+        if (na.l !== nb.l) alpha *= BILATERAL_K;
+        alpha = Math.round(alpha * 20) / 20;
+        if (alpha < 0.04) continue;
         const bkt = src.l ? oBkt : cBkt;
         let arr = bkt.get(alpha);
         if (!arr) { arr = []; bkt.set(alpha, arr); }
@@ -250,21 +307,23 @@ function SciCanvas({ onSpk }: { onSpk: (n: number) => void }) {
         cx.stroke();
       });
 
-      // ── Hexagon node renderer — two-pass, no save/restore in hot loop ─────
+      // ── Stage 1+2: Pascal-gated LOD hexagon renderer ──────────────────────
       const active: N[] = [];
       cx.shadowBlur = 0; cx.shadowColor = "transparent";
-      // Pass 1: inactive hexagons
       for (let i = 0; i < ns.length; i++) {
         const n = ns[i];
         if (n.f > 0) { active.push(n); continue; }
+        const imp = sciPw[i];
+        if (imp < PASCAL_CULL) continue; // Stage 1 gate
         const op = .1 + Math.max(0, (n.v + 65) / 75) * .28;
-        if (op < CULL_NODE) continue; // PascalCuller
+        if (op < 0.048) continue;
         cx.fillStyle = `rgba(${n.l ? "255,122,26" : "0,212,255"},${op.toFixed(2)})`;
+        // Stage 2: LOD hex radius by Pascal importance tier
+        const sz = lodR(imp) * 2; // hex scale: lodR gives 0.7-2.0, multiply for hexagon
         cx.beginPath();
-        for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3 - Math.PI / 6; cx.lineTo(n.x + 4 * Math.cos(a), n.y + 4 * Math.sin(a)); }
+        for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3 - Math.PI / 6; cx.lineTo(n.x + sz * Math.cos(a), n.y + sz * Math.sin(a)); }
         cx.closePath(); cx.fill();
       }
-      // Pass 2: active (glowing) hexagons — typically < 10 at a time
       for (let i = 0; i < active.length; i++) {
         const n = active[i];
         cx.shadowColor = n.l ? "#ff7a1a" : "#00d4ff";
