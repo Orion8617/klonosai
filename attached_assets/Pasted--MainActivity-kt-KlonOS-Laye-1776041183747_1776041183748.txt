@@ -1,0 +1,609 @@
+// ═══════════════════════════════════════════════════════════════
+//  MainActivity.kt — KlonOS Layer 5.0 · Control Dashboard
+//  ClonEngine · Juan José Salgado Fuentes
+//
+//  Arquitectura: MVVM · Jetpack Compose · Material3
+//  Stack:        Kotlin 1.9 · Compose BOM 2024.02 · Flow
+//
+//  Correcciones vs versión anterior:
+//    ✅ Estado en ViewModel (no en Activity)
+//    ✅ startForegroundService() en lugar de startService()
+//    ✅ ACTION_STOP para detener foreground service correctamente
+//    ✅ POST_NOTIFICATIONS permission (Android 13+)
+//    ✅ BroadcastReceiver → métricas reales del core Rust
+//    ✅ Vocabulario técnico correcto (TUN, fd handoff, userspace)
+//    ✅ Dashboard con telemetría SNN en tiempo real
+//    ✅ Modelo de monetización integrado en UI
+// ═══════════════════════════════════════════════════════════════
+
+package com.klonos.lagkiller
+
+import android.Manifest
+import android.app.Activity
+import android.content.Intent
+import android.net.VpnService
+import android.os.Build
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlin.math.sin
+
+// ── Paleta ClonEngine ────────────────────────────────────────────
+private val BG_NEURAL      = Color(0xFF0D1A0F)
+private val BG_SURFACE     = Color(0xFF162018)
+private val BG_CARD        = Color(0xFF0A110C)
+private val GREEN_SYNAPSE  = Color(0xFF00C896)
+private val GREEN_DIM      = Color(0xFF00664E)
+private val AMBER_PASCAL   = Color(0xFFFFAA00)
+private val VIOLET_SCH     = Color(0xFFB44FFF)
+private val RED_WASTE      = Color(0xFFFF3355)
+private val CYAN_THETA     = Color(0xFF00E8FF)
+private val INACTIVE_COLOR = Color(0xFFE05A3A)
+
+// ════════════════════════════════════════════════════════════════
+class MainActivity : ComponentActivity() {
+
+    private val vm: KlonEngineViewModel by viewModels()
+
+    // ── VPN Permission Launcher ──────────────────────────────────
+    private val vpnPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            vm.onPermissionGranted(this)
+        } else {
+            Toast.makeText(
+                this,
+                "Permiso VPN requerido para el interceptor TUN",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    // ── Notification Permission Launcher (Android 13+) ───────────
+    private val notifPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* Notificación opcional — el VPN funciona sin ella */ }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        // Solicitar POST_NOTIFICATIONS en Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        setContent {
+            MaterialTheme(colorScheme = darkColorScheme(
+                primary          = GREEN_SYNAPSE,
+                background       = BG_NEURAL,
+                surface          = BG_SURFACE,
+                onPrimary        = Color.Black,
+                onBackground     = GREEN_SYNAPSE,
+            )) {
+                KlonOSDashboard(
+                    vm                    = vm,
+                    onEngage              = { requestVpnPermission() },
+                    onDisengage           = { vm.onDisengageRequested(this) },
+                )
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Sincronizar estado del túnel (el OS puede haber matado el servicio)
+        vm.syncTunnelState()
+    }
+
+    private fun requestVpnPermission() {
+        vm.onEngageRequested()
+        val intent = VpnService.prepare(this)
+        if (intent != null) {
+            vpnPermissionLauncher.launch(intent)
+        } else {
+            // Permiso ya concedido
+            vm.onPermissionGranted(this)
+        }
+    }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  DASHBOARD PRINCIPAL
+// ════════════════════════════════════════════════════════════════
+@Composable
+fun KlonOSDashboard(
+    vm:         KlonEngineViewModel,
+    onEngage:   () -> Unit,
+    onDisengage:() -> Unit,
+) {
+    val tunnel   by vm.tunnel.collectAsStateWithLifecycle()
+    val metrics  by vm.metrics.collectAsStateWithLifecycle()
+    val tier     by vm.tier.collectAsStateWithLifecycle()
+    val daHistory by vm.dopamineHistory.collectAsStateWithLifecycle()
+
+    val isActive = tunnel.status == KlonEngineViewModel.TunnelStatus.ACTIVE
+    val isLoading= tunnel.status in listOf(
+        KlonEngineViewModel.TunnelStatus.STARTING,
+        KlonEngineViewModel.TunnelStatus.REQUESTING_PERMISSION,
+    )
+
+    val accentColor by animateColorAsState(
+        targetValue = when (tunnel.status) {
+            KlonEngineViewModel.TunnelStatus.ACTIVE  -> GREEN_SYNAPSE
+            KlonEngineViewModel.TunnelStatus.ERROR   -> RED_WASTE
+            KlonEngineViewModel.TunnelStatus.STARTING-> AMBER_PASCAL
+            else                                     -> INACTIVE_COLOR
+        },
+        animationSpec = tween(500),
+        label = "accentColor"
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BG_NEURAL)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+
+        // ── HEADER ──────────────────────────────────────────────
+        HeaderSection(accentColor, tier)
+        Spacer(Modifier.height(24.dp))
+
+        // ── TUNNEL STATUS CARD ───────────────────────────────────
+        TunnelStatusCard(tunnel, metrics, accentColor)
+        Spacer(Modifier.height(12.dp))
+
+        // ── SNN METRICS GRID ─────────────────────────────────────
+        AnimatedVisibility(visible = isActive) {
+            Column {
+                MetricsGrid(metrics)
+                Spacer(Modifier.height(12.dp))
+                DopamineCurve(daHistory)
+                Spacer(Modifier.height(12.dp))
+                PascalRingBar(metrics.activeRing)
+                Spacer(Modifier.height(12.dp))
+            }
+        }
+
+        // ── ERROR BANNER ─────────────────────────────────────────
+        tunnel.errorMsg?.let { err ->
+            ErrorBanner(err)
+            Spacer(Modifier.height(12.dp))
+        }
+
+        // ── ENGAGE / DISENGAGE BUTTON ────────────────────────────
+        EngageButton(
+            isActive  = isActive,
+            isLoading = isLoading,
+            accent    = accentColor,
+            onEngage  = onEngage,
+            onDisengage = onDisengage,
+        )
+        Spacer(Modifier.height(24.dp))
+
+        // ── SUBSCRIPTION TIERS ───────────────────────────────────
+        SubscriptionSection(tier, onSelectTier = { vm.setTier(it) })
+
+        Spacer(Modifier.height(16.dp))
+        FooterLabel()
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+//  HEADER
+// ────────────────────────────────────────────────────────────────
+@Composable
+private fun HeaderSection(accent: Color, tier: KlonEngineViewModel.SubscriptionTier) {
+    Text(
+        "KLONOS",
+        color      = Color.White,
+        fontSize   = 28.sp,
+        fontWeight = FontWeight.Black,
+        fontFamily = FontFamily.Monospace,
+        letterSpacing = 6.sp,
+    )
+    Text(
+        "LAYER 5.0  ·  EDGE NEUROMORPHIC ROUTER",
+        color      = accent,
+        fontSize   = 10.sp,
+        fontFamily = FontFamily.Monospace,
+        letterSpacing = 2.sp,
+    )
+    Spacer(Modifier.height(4.dp))
+    Surface(
+        color = accent.copy(alpha = 0.15f),
+        shape = RoundedCornerShape(4.dp),
+    ) {
+        Text(
+            text      = tier.displayName.uppercase(),
+            color     = accent,
+            fontSize  = 8.sp,
+            fontFamily= FontFamily.Monospace,
+            letterSpacing = 2.sp,
+            modifier  = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+        )
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+//  TUNNEL STATUS CARD
+// ────────────────────────────────────────────────────────────────
+@Composable
+private fun TunnelStatusCard(
+    tunnel:  KlonEngineViewModel.TunnelState,
+    metrics: KlonEngineViewModel.EngineMetrics,
+    accent:  Color,
+) {
+    CardContainer {
+        MonoLabel("TUN INTERFACE STATUS")
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Indicador pulsante
+            val pulse = rememberInfiniteTransition(label = "pulse")
+            val alpha by pulse.animateFloat(
+                initialValue   = 0.4f, targetValue  = 1.0f,
+                animationSpec  = infiniteRepeatable(tween(700), RepeatMode.Reverse),
+                label          = "alpha"
+            )
+            Box(Modifier
+                .size(10.dp)
+                .clip(RoundedCornerShape(50))
+                .background(accent.copy(alpha = if (tunnel.status == KlonEngineViewModel.TunnelStatus.ACTIVE) alpha else 0.4f))
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = when (tunnel.status) {
+                    KlonEngineViewModel.TunnelStatus.ACTIVE   -> "TUN TUNNEL · ACTIVE"
+                    KlonEngineViewModel.TunnelStatus.STARTING -> "ESTABLISHING TUN fd HANDOFF..."
+                    KlonEngineViewModel.TunnelStatus.ERROR    -> "ERROR · SEE BELOW"
+                    KlonEngineViewModel.TunnelStatus.REQUESTING_PERMISSION
+                                                              -> "AWAITING VPN PERMISSION"
+                    else                                      -> "INACTIVE"
+                },
+                color      = accent,
+                fontSize   = 14.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+            )
+        }
+        if (tunnel.status == KlonEngineViewModel.TunnelStatus.ACTIVE) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "SNN Engine · ${metrics.snnNeuronsLabel} · fd → native userspace loop",
+                color      = Color.White.copy(alpha = 0.5f),
+                fontSize   = 10.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+            Text(
+                "Schumann phase-lock: ${(metrics.schumannPhase * 100).toInt()}%  " +
+                "Winik: #${metrics.winikCycle}  " +
+                "Protocol: ${metrics.dominantProtocol}",
+                color      = VIOLET_SCH.copy(alpha = 0.7f),
+                fontSize   = 9.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier   = Modifier.padding(top = 2.dp),
+            )
+        }
+    }
+}
+
+private val KlonEngineViewModel.EngineMetrics.snnNeuronsLabel: String
+    get() = "C.elegans 302N"   // TODO: dinamico según tier
+
+// ────────────────────────────────────────────────────────────────
+//  METRICS GRID — 6 celdas con telemetría Rust real
+// ────────────────────────────────────────────────────────────────
+@Composable
+private fun MetricsGrid(m: KlonEngineViewModel.EngineMetrics) {
+    val cols = listOf(
+        Triple("PACKETS/S",  m.packetsPerSec.toString(),       GREEN_SYNAPSE),
+        Triple("LATENCY",    "${m.latencyMs.toInt()} ms",      CYAN_THETA),
+        Triple("Δ LATENCY",  "${m.latencyDeltaMs.toInt()} ms", AMBER_PASCAL),
+        Triple("WASTE BLKD", m.wasteBlocked.toString(),        RED_WASTE),
+        Triple("SYNOPS/S",   "${m.synOpsPerSec/1000}K",        VIOLET_SCH),
+        Triple("FREED KB",   m.totalBytesFreedKB.toString(),   GREEN_DIM),
+    )
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        cols.take(3).forEach { (label, value, color) ->
+            MetCell(label, value, color, Modifier.weight(1f))
+        }
+    }
+    Spacer(Modifier.height(8.dp))
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        cols.drop(3).forEach { (label, value, color) ->
+            MetCell(label, value, color, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun MetCell(label: String, value: String, color: Color, modifier: Modifier) {
+    Surface(color = BG_CARD, shape = RoundedCornerShape(4.dp), modifier = modifier) {
+        Column(Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(value, color = color, fontSize = 16.sp,
+                fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+            Text(label, color = Color.Gray, fontSize = 7.sp,
+                fontFamily = FontFamily.Monospace, letterSpacing = 1.sp)
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+//  DOPAMINE CURVE — canvas con histórico de 60 ticks
+// ────────────────────────────────────────────────────────────────
+@Composable
+private fun DopamineCurve(history: List<Float>) {
+    CardContainer {
+        MonoLabel("DOPAMINE CURVE  ·  R-STDP REWARD")
+        Spacer(Modifier.height(8.dp))
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+        ) {
+            val w = size.width; val h = size.height
+            if (history.size < 2) return@Canvas
+            // Fondo
+            drawRect(Color(0xFF0A110C))
+            // Línea cero
+            drawLine(Color.White.copy(0.05f), Offset(0f, h/2), Offset(w, h/2), 1f)
+            // Curva dopamina
+            val path = Path()
+            history.forEachIndexed { i, da ->
+                val x = i.toFloat() / (history.size - 1) * w
+                val y = h - da.coerceIn(0f,1f) * h
+                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            drawPath(path, Brush.linearGradient(listOf(VIOLET_SCH.copy(0.8f), GREEN_SYNAPSE.copy(0.8f))),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f))
+        }
+        val lastDa = history.lastOrNull() ?: 0.5f
+        Text("DA: ${(lastDa*100).toInt()}%  ·  Neuromodulación activa",
+            color = VIOLET_SCH, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+//  PASCAL RING BAR — distribución de tráfico por anillo
+// ────────────────────────────────────────────────────────────────
+@Composable
+private fun PascalRingBar(activeRing: Int) {
+    val weights = listOf(0.0625f, 0.25f, 0.375f, 0.25f, 0.0625f)
+    val labels  = listOf("DNS/ACK", "HTTPS", "HTTP", "UDP", "OTHER")
+    val colors  = listOf(GREEN_SYNAPSE, CYAN_THETA, AMBER_PASCAL, VIOLET_SCH, RED_WASTE)
+
+    CardContainer {
+        MonoLabel("PASCAL CASCADE RING DISTRIBUTION")
+        Spacer(Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            weights.forEachIndexed { ring, weight ->
+                Column(
+                    modifier = Modifier.weight(weight * 5), // visual proporcional
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(Modifier
+                        .fillMaxWidth()
+                        .height(20.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(
+                            if (ring == activeRing) colors[ring]
+                            else colors[ring].copy(alpha = 0.25f)
+                        )
+                    ) {
+                        if (ring == activeRing) {
+                            Text("R$ring", color = Color.Black, fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.align(Alignment.Center))
+                        }
+                    }
+                    Spacer(Modifier.height(3.dp))
+                    Text(labels[ring], color = colors[ring].copy(alpha = 0.7f),
+                        fontSize = 7.sp, fontFamily = FontFamily.Monospace,
+                        maxLines = 1)
+                }
+            }
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+//  ENGAGE BUTTON
+// ────────────────────────────────────────────────────────────────
+@Composable
+private fun EngageButton(
+    isActive:    Boolean,
+    isLoading:   Boolean,
+    accent:      Color,
+    onEngage:    () -> Unit,
+    onDisengage: () -> Unit,
+) {
+    Button(
+        onClick  = { if (isActive) onDisengage() else onEngage() },
+        enabled  = !isLoading,
+        colors   = ButtonDefaults.buttonColors(containerColor = accent),
+        shape    = RoundedCornerShape(4.dp),
+        modifier = Modifier.fillMaxWidth().height(60.dp),
+    ) {
+        if (isLoading) {
+            CircularProgressIndicator(
+                color  = Color.Black,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(24.dp),
+            )
+            Spacer(Modifier.width(12.dp))
+        }
+        Text(
+            text = when {
+                isLoading -> "ESTABLISHING TUN INTERFACE..."
+                isActive  -> "DISENGAGE · CLOSE TUN TUNNEL"
+                else      -> "ENGAGE · START TUN INTERCEPT"
+            },
+            color      = Color.Black,
+            fontWeight = FontWeight.Black,
+            fontFamily = FontFamily.Monospace,
+            fontSize   = 13.sp,
+            letterSpacing = 1.sp,
+        )
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+//  ERROR BANNER
+// ────────────────────────────────────────────────────────────────
+@Composable
+private fun ErrorBanner(msg: String) {
+    Surface(
+        color = RED_WASTE.copy(0.15f),
+        shape = RoundedCornerShape(4.dp),
+        border= BorderStroke(1.dp, RED_WASTE.copy(0.5f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            "⚠ $msg",
+            color      = RED_WASTE,
+            fontSize   = 10.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier   = Modifier.padding(12.dp),
+        )
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+//  SUBSCRIPTION SECTION — Monetización sin humo
+// ────────────────────────────────────────────────────────────────
+@Composable
+private fun SubscriptionSection(
+    current:       KlonEngineViewModel.SubscriptionTier,
+    onSelectTier:  (KlonEngineViewModel.SubscriptionTier) -> Unit,
+) {
+    HorizontalDivider(color = GREEN_SYNAPSE.copy(0.15f))
+    Spacer(Modifier.height(16.dp))
+    MonoLabel("SUBSCRIPTION TIERS", fontSize = 9)
+    Spacer(Modifier.height(10.dp))
+
+    KlonEngineViewModel.SubscriptionTier.entries.forEach { tier ->
+        TierCard(tier, isCurrentTier = tier == current, onSelect = { onSelectTier(tier) })
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun TierCard(
+    tier:          KlonEngineViewModel.SubscriptionTier,
+    isCurrentTier: Boolean,
+    onSelect:      () -> Unit,
+) {
+    val borderColor = if (isCurrentTier) GREEN_SYNAPSE else Color.White.copy(0.08f)
+    val bgColor     = if (isCurrentTier) GREEN_SYNAPSE.copy(0.08f) else BG_SURFACE
+
+    Surface(
+        color  = bgColor,
+        shape  = RoundedCornerShape(6.dp),
+        border = BorderStroke(if (isCurrentTier) 1.5.dp else 0.5.dp, borderColor),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onSelect),
+    ) {
+        Row(
+            Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(tier.displayName.uppercase(),
+                    color = if (isCurrentTier) GREEN_SYNAPSE else Color.White,
+                    fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                Spacer(Modifier.height(4.dp))
+                val features = buildString {
+                    append("${tier.snnNeurons} neurons")
+                    if (tier.hasSchumann) append(" · Schumann 7.83Hz")
+                    if (tier.hasExport)   append(" · CSV export")
+                    if (tier.hasTRIDENT)  append(" · TRIDENT GPS-free")
+                }
+                Text(features, color = Color.Gray, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                if (tier.maxDevices < Int.MAX_VALUE) {
+                    Text("${tier.maxDevices} devices max",
+                        color = Color.Gray.copy(0.6f), fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                } else {
+                    Text("Unlimited devices · SLA 99.9% · White-label",
+                        color = Color.Gray.copy(0.6f), fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                }
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(tier.price, color = AMBER_PASCAL,
+                    fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                if (isCurrentTier) {
+                    Spacer(Modifier.height(4.dp))
+                    Surface(color = GREEN_SYNAPSE, shape = RoundedCornerShape(2.dp)) {
+                        Text("ACTIVE", color = Color.Black, fontSize = 7.sp,
+                            fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────
+//  HELPERS UI
+// ────────────────────────────────────────────────────────────────
+@Composable
+private fun CardContainer(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        color  = BG_SURFACE,
+        shape  = RoundedCornerShape(6.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(14.dp), content = content)
+    }
+}
+
+@Composable
+private fun MonoLabel(text: String, fontSize: Int = 8) {
+    Text(
+        text      = text,
+        color     = Color.Gray,
+        fontSize  = fontSize.sp,
+        fontFamily= FontFamily.Monospace,
+        letterSpacing = 1.5.sp,
+    )
+}
+
+@Composable
+private fun FooterLabel() {
+    Text(
+        "ClonEngine · C.elegans 302N · Maya Q20 QAT · Apache 2.0",
+        color     = Color.Gray.copy(0.4f),
+        fontSize  = 8.sp,
+        fontFamily= FontFamily.Monospace,
+        letterSpacing = 1.sp,
+    )
+    Spacer(Modifier.height(4.dp))
+    Text(
+        "Juan José Salgado Fuentes · New Orleans · 2026",
+        color     = Color.Gray.copy(0.25f),
+        fontSize  = 7.sp,
+        fontFamily= FontFamily.Monospace,
+    )
+}
