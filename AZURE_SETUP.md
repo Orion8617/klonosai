@@ -4,12 +4,15 @@
 ---
 
 ## ✅ HECHO
-- [x] Resource group `klonosai-rg` creado
-- [x] Service Principal `klonosai-github-deploy` creado (credenciales obtenidas)
-- [ ] Container Registry — pendiente
-- [ ] Static Web App — falló por región, re-crear con eastus2
+- [x] Resource group `klonosai-rg` — East US
+- [x] Service Principal `klonosai-github-deploy` — credenciales obtenidas
+- [x] Static Web App `klonosai-web` — East US 2 — FREE
+  - URL: `thankful-rock-010961e0f.7.azurestaticapps.net`
+  - Token de deployment: obtenido ✓
+- [ ] Container Registry `klonosairegistry` — pendiente
 - [ ] GitHub repo — pendiente
 - [ ] GitHub Secrets — pendiente
+- [ ] PostgreSQL — pendiente
 
 ---
 
