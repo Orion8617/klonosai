@@ -624,6 +624,17 @@ footer{border-top:1px solid var(--border);padding:64px 0 32px}
 .cpay-txlbl{font-family:var(--f-mono);font-size:9px;letter-spacing:.12em;color:var(--muted)}
 .cpay-txval{font-family:var(--f-mono);font-size:12px;color:var(--text);flex:1}
 .cpay-success-note{font-family:var(--f-body);font-size:12px;color:var(--muted);text-align:center;max-width:380px;line-height:1.6}
+.cpay-success-note--verified{color:var(--green);font-weight:600}
+.cpay-success-icon--green{background:rgba(0,255,148,.15);border-color:var(--green);color:var(--green);font-size:28px}
+.cpay-err--sm{font-size:11px;max-width:340px;text-align:center}
+
+/* ── Verifying spinner ── */
+.cpay-verifying{display:flex;flex-direction:column;align-items:center;gap:14px;padding:36px 0}
+.cpay-spinner{width:44px;height:44px;border:3px solid rgba(192,132,252,.15);border-top-color:#c084fc;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.cpay-verify-title{font-family:var(--f-display);font-size:18px;font-weight:700;color:#c084fc}
+.cpay-verify-sub{font-family:var(--f-body);font-size:12px;color:var(--muted)}
+
 .cpay-footer{margin-top:20px;padding-top:16px;border-top:1px solid var(--border);font-family:var(--f-mono);font-size:9px;color:var(--dim);text-align:center;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;letter-spacing:.06em}
 .pbtn-crypto{display:block;font-family:var(--f-mono);font-size:9px;letter-spacing:.1em;text-align:center;padding:8px 16px;border-radius:3px;border:1px solid rgba(192,132,252,.25);color:rgba(192,132,252,.7);background:rgba(192,132,252,.04);cursor:pointer;transition:all .2s;text-decoration:none;margin-top:8px}
 .pbtn-crypto:hover{border-color:rgba(192,132,252,.5);color:#c084fc;background:rgba(192,132,252,.08)}

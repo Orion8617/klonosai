@@ -31,6 +31,9 @@ const PLAN_PRICES: Record<string, { usd: number }> = {
 const SOL_PRICE_REF = 120;
 const ETH_PRICE_REF = 2500;
 
+// ── API base (same-origin, routed via proxy) ──────────────────────────────────
+const VERIFY_URL = "/api-server/api/payments/solana/verify";
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function solanaPayURI(amount: number, label: string): string {
   const params = new URLSearchParams({
@@ -47,7 +50,8 @@ function shortAddr(addr: string): string {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Chain    = "sol" | "eth";
-type TxStatus = "idle" | "connecting" | "sending" | "success" | "error";
+type TxStatus = "idle" | "connecting" | "sending" | "verifying" | "success" | "error";
+type ActivationStatus = "pending" | "verified" | "email-fallback";
 
 interface Props {
   open: boolean;
@@ -57,13 +61,14 @@ interface Props {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function CryptoPayModal({ open, plan, onClose }: Props) {
-  const [chain,   setChain]   = useState<Chain>("sol");
-  const [status,  setStatus]  = useState<TxStatus>("idle");
-  const [solAddr, setSolAddr] = useState("");
-  const [ethAddr, setEthAddr] = useState("");
-  const [txSig,   setTxSig]   = useState("");
-  const [errMsg,  setErrMsg]  = useState("");
-  const [copied,  setCopied]  = useState(false);
+  const [chain,      setChain]      = useState<Chain>("sol");
+  const [status,     setStatus]     = useState<TxStatus>("idle");
+  const [activation, setActivation] = useState<ActivationStatus>("pending");
+  const [solAddr,    setSolAddr]    = useState("");
+  const [ethAddr,    setEthAddr]    = useState("");
+  const [txSig,      setTxSig]      = useState("");
+  const [errMsg,     setErrMsg]     = useState("");
+  const [copied,     setCopied]     = useState(false);
   const phantomRef = useRef<Phantom | null>(null);
 
   const price    = PLAN_PRICES[plan] ?? { usd: 0 };
@@ -74,7 +79,6 @@ export function CryptoPayModal({ open, plan, onClose }: Props) {
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
-      // Lazily init Phantom SDK embedded wallet
       createPhantom({
         zIndex: 9999,
         hideLauncherBeforeOnboarded: true,
@@ -82,7 +86,9 @@ export function CryptoPayModal({ open, plan, onClose }: Props) {
       }).then(p => { phantomRef.current = p; }).catch(() => {});
     } else {
       document.body.style.overflow = "";
-      setStatus("idle"); setSolAddr(""); setEthAddr(""); setTxSig(""); setErrMsg("");
+      setStatus("idle");
+      setActivation("pending");
+      setSolAddr(""); setEthAddr(""); setTxSig(""); setErrMsg("");
     }
     return () => { document.body.style.overflow = ""; };
   }, [open]);
@@ -93,7 +99,7 @@ export function CryptoPayModal({ open, plan, onClose }: Props) {
     return () => document.removeEventListener("keydown", esc);
   }, [onClose]);
 
-  // ── Resolve Solana provider (extension first, then SDK embedded wallet) ────
+  // ── Resolve Solana provider ─────────────────────────────────────────────────
   const getSolProv = useCallback(() => {
     const ext = (window as { phantom?: { solana?: unknown } }).phantom?.solana ??
                 (window as { solana?: { isPhantom?: boolean } }).solana;
@@ -103,7 +109,6 @@ export function CryptoPayModal({ open, plan, onClose }: Props) {
       signAndSendTransaction: (tx: Transaction) => Promise<{ signature: string }>;
       publicKey: PublicKey | null;
     };
-    // SDK embedded wallet exposes .solana after init
     return (phantomRef.current?.solana as typeof ext | undefined) ?? null;
   }, []);
 
@@ -113,19 +118,43 @@ export function CryptoPayModal({ open, plan, onClose }: Props) {
     return w.phantom?.ethereum ?? w.ethereum ?? (phantomRef.current?.ethereum as typeof w.ethereum | undefined) ?? null;
   }, []);
 
+  // ── Auto-verify SOL transaction on-chain ──────────────────────────────────
+  const verifySolTx = useCallback(async (signature: string) => {
+    setStatus("verifying");
+    try {
+      const res = await fetch(VERIFY_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ signature, plan, planUsdPrice: price.usd }),
+      });
+      const data = await res.json() as { verified: boolean; error?: string };
+      if (data.verified) {
+        setActivation("verified");
+      } else {
+        // Verification failed — fall back to manual email
+        setActivation("email-fallback");
+        setErrMsg(data.error ?? "On-chain verification failed — please email us your TX hash.");
+      }
+    } catch {
+      setActivation("email-fallback");
+      setErrMsg("Could not reach verification server — please email us your TX hash.");
+    }
+    setStatus("success");
+  }, [plan, price.usd]);
+
   // ── Connect Phantom (SOL) ──────────────────────────────────────────────────
   const connectSolana = useCallback(async () => {
     setStatus("connecting"); setErrMsg("");
     try {
       const prov = getSolProv();
       if (!prov) {
-        // Show phantom SDK wallet UI if available, otherwise redirect
         if (phantomRef.current) {
           phantomRef.current.show();
           setErrMsg("Use the Phantom wallet that appeared on screen, or install the browser extension.");
         } else {
           window.open("https://phantom.app/download", "_blank");
-          setErrMsg("Phantom not found — installing it and reload the page.");
+          setErrMsg("Phantom not found — install it and reload the page.");
         }
         setStatus("idle");
         return;
@@ -139,7 +168,7 @@ export function CryptoPayModal({ open, plan, onClose }: Props) {
     }
   }, [getSolProv]);
 
-  // ── Send SOL ───────────────────────────────────────────────────────────────
+  // ── Send SOL → auto-verify ─────────────────────────────────────────────────
   const sendSolana = useCallback(async () => {
     if (!solAddr) return;
     if (approxSol === 0) { setErrMsg("Free plan — no payment required."); return; }
@@ -159,12 +188,13 @@ export function CryptoPayModal({ open, plan, onClose }: Props) {
       tx.feePayer = fromPubkey;
       const { signature } = await prov.signAndSendTransaction(tx);
       setTxSig(signature);
-      setStatus("success");
+      // Auto-verify on-chain immediately
+      await verifySolTx(signature);
     } catch (e: unknown) {
       setErrMsg(e instanceof Error ? e.message : "Transaction failed");
       setStatus("idle");
     }
-  }, [solAddr, approxSol, getSolProv]);
+  }, [solAddr, approxSol, getSolProv, verifySolTx]);
 
   // ── Connect + Send ETH ─────────────────────────────────────────────────────
   const connectAndSendEth = useCallback(async () => {
@@ -189,6 +219,7 @@ export function CryptoPayModal({ open, plan, onClose }: Props) {
       }) as string;
       setTxSig(txHash);
       setStatus("success");
+      setActivation("email-fallback"); // ETH verification not automated yet
     } catch (e: unknown) {
       setErrMsg(e instanceof Error ? e.message : "Transaction rejected");
       setStatus("idle");
@@ -250,23 +281,52 @@ export function CryptoPayModal({ open, plan, onClose }: Props) {
           </button>
         </div>
 
+        {/* ── Verifying spinner ── */}
+        {status === "verifying" && (
+          <div className="cpay-verifying">
+            <div className="cpay-spinner" />
+            <div className="cpay-verify-title">Verifying on-chain…</div>
+            <div className="cpay-verify-sub">Querying Solana RPC · this takes a few seconds</div>
+          </div>
+        )}
+
         {/* ── Success ── */}
-        {status === "success" ? (
+        {status === "success" && (
           <div className="cpay-success">
-            <div className="cpay-success-icon">✓</div>
-            <div className="cpay-success-title">Payment Sent!</div>
-            <div className="cpay-success-sub">Transaction confirmed on-chain</div>
+            <div className={`cpay-success-icon${activation === "verified" ? " cpay-success-icon--green" : ""}`}>
+              {activation === "verified" ? "✓" : "◈"}
+            </div>
+            <div className="cpay-success-title">
+              {activation === "verified" ? "Plan Activated!" : "Payment Sent!"}
+            </div>
+            <div className="cpay-success-sub">
+              {activation === "verified"
+                ? "Verified on-chain — no email required"
+                : "Transaction confirmed · manual review required"}
+            </div>
             <div className="cpay-txhash">
               <span className="cpay-txlbl">TX HASH</span>
               <span className="cpay-txval">{shortAddr(txSig)}</span>
               <button className="cpay-copy" onClick={() => copyAddr(txSig)}>{copied ? "✓" : "copy"}</button>
             </div>
-            <p className="cpay-success-note">
-              Email{" "}<a href="mailto:klonengine@proton.me" className="priv-link">klonengine@proton.me</a>{" "}
-              with this TX hash to activate your plan. We'll respond within 24 h.
-            </p>
+            {activation === "verified" ? (
+              <p className="cpay-success-note cpay-success-note--verified">
+                Your <strong>{plan}</strong> plan is now active. Thank you!
+              </p>
+            ) : (
+              <>
+                {errMsg && <div className="cpay-err cpay-err--sm">{errMsg}</div>}
+                <p className="cpay-success-note">
+                  Email{" "}<a href="mailto:klonengine@proton.me" className="priv-link">klonengine@proton.me</a>{" "}
+                  with this TX hash to activate your plan. We'll respond within 24 h.
+                </p>
+              </>
+            )}
           </div>
-        ) : (
+        )}
+
+        {/* ── Main body (idle / connecting / sending) ── */}
+        {status !== "verifying" && status !== "success" && (
           <div className="cpay-body">
             {/* ── QR code ── */}
             <div className="cpay-qr-wrap">
@@ -319,7 +379,7 @@ export function CryptoPayModal({ open, plan, onClose }: Props) {
                     </div>
                   )}
                   <div className="cpay-rate-note">
-                    Ref: SOL ~${SOL_PRICE_REF} · ETH ~${ETH_PRICE_REF} · verify before sending
+                    Amounts are approximate — the server verifies the actual value on-chain
                   </div>
                 </div>
               )}
