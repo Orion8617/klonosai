@@ -1,0 +1,142 @@
+// ═══════════════════════════════════════════════════════
+//  MAYA.RS — 7 Innovaciones Maya
+//  ClonEngine Drosophila · Juan José Salgado Fuentes
+// ═══════════════════════════════════════════════════════
+
+pub const MAYA_BASE  : usize = 20;
+pub const MAYA_LEVELS: usize = 20;
+
+// ── INNOVATION #1: Hemispheric Asymmetry ──
+pub const THRESH_LEFT : f32 = 0.85;   // reactivo
+pub const THRESH_RIGHT: f32 = 1.15;   // analítico
+
+// ── INNOVATION #4: Bilateral Resonance ──
+pub const BILATERAL_COUPLING: f32 = 0.30;
+
+// ── INNOVATION #6: Sacrificio WInik ──
+pub const WINIK_CYCLE    : usize = 20;
+pub const SACRIFICE_RATIO: f32   = 0.30;
+
+// ── INNOVATION #7: Red Micorriza ──
+pub const OXLAHUN_CYCLE  : usize = 13;
+pub const MYCORRHIZA_RATE: f32   = 0.12;
+
+// ── INNOVATION #5: Vigesimal Quantization ──
+/// Quantize f32 weight to Maya base-20 discrete level
+#[inline(always)]
+pub fn maya_quantize(w: f32) -> f32 {
+    let level = (w * MAYA_LEVELS as f32).round() as i32;
+    let clamped = level.clamp(0, (MAYA_LEVELS - 1) as i32);
+    clamped as f32 / MAYA_LEVELS as f32
+}
+
+/// Maya level from weight
+#[inline(always)]
+pub fn weight_to_level(w: f32) -> u8 {
+    ((w * MAYA_LEVELS as f32).round() as i32)
+        .clamp(0, (MAYA_LEVELS - 1) as i32) as u8
+}
+
+/// Weight from Maya level
+#[inline(always)]
+pub fn level_to_weight(l: u8) -> f32 {
+    l as f32 / MAYA_LEVELS as f32
+}
+
+// ── Maya Mutation Operators ──
+#[derive(Clone, Copy, Debug)]
+pub enum MayaMutation {
+    Punto(i8),   // ±1  (dot)
+    Barra(i8),   // ±5  (bar)
+    Concha,      // →0  (shell/zero)
+}
+
+impl MayaMutation {
+    pub fn apply(self, level: u8) -> u8 {
+        match self {
+            MayaMutation::Punto(d)  => (level as i16 + d as i16).clamp(0, 19) as u8,
+            MayaMutation::Barra(d)  => (level as i16 + d as i16).clamp(0, 19) as u8,
+            MayaMutation::Concha    => 0,
+        }
+    }
+}
+
+// ── INNOVATION #3: 6-bit Archetype ──
+/// 6 bits encode neuron functional type
+/// bit5=hemisphere bit4=sensory bit3=motor
+/// bit2=cross_connected bit1=triangle_member bit0=high_activity
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Archetype6Bit(pub u8);
+
+impl Archetype6Bit {
+    pub fn new(
+        left_hemi:      bool,
+        sensory:        bool,
+        motor:          bool,
+        cross_connected:bool,
+        triangle_member:bool,
+        high_activity:  bool,
+    ) -> Self {
+        let b = ((left_hemi       as u8) << 5)
+              | ((sensory         as u8) << 4)
+              | ((motor           as u8) << 3)
+              | ((cross_connected as u8) << 2)
+              | ((triangle_member as u8) << 1)
+              | (high_activity    as u8);
+        Archetype6Bit(b & 0b0011_1111)
+    }
+
+    #[inline] pub fn is_left        (&self) -> bool { self.0 & 0b100000 != 0 }
+    #[inline] pub fn is_sensory     (&self) -> bool { self.0 & 0b010000 != 0 }
+    #[inline] pub fn is_motor       (&self) -> bool { self.0 & 0b001000 != 0 }
+    #[inline] pub fn is_cross       (&self) -> bool { self.0 & 0b000100 != 0 }
+    #[inline] pub fn in_triangle    (&self) -> bool { self.0 & 0b000010 != 0 }
+    #[inline] pub fn high_activity  (&self) -> bool { self.0 & 0b000001 != 0 }
+
+    pub fn threshold_mult(&self) -> f32 {
+        if self.is_left() { THRESH_LEFT } else { THRESH_RIGHT }
+    }
+}
+
+// ── INNOVATION #2: Simplicial Triangles ──
+/// Triangle motif types found in the Drosophila connectome
+#[derive(Clone, Copy, Debug)]
+pub enum TriangleMotif {
+    IsoscelesLeft,        // 1,695 in C.elegans scaled to fly
+    ScaleneProjecting,    // 1,780 equivalent
+    CrossHemisphere,      // 1,037 equivalent
+}
+
+#[derive(Clone, Debug)]
+pub struct TriangleBoostedSynapse {
+    pub pre:      u32,
+    pub post:     u32,
+    pub weight:   f32,
+    pub level:    u8,
+    pub motif:    Option<TriangleMotif>,
+    /// Baked-in topological boost — zero runtime cost
+    pub boost:    f32,
+}
+
+impl TriangleBoostedSynapse {
+    pub fn new(pre: u32, post: u32, weight: f32, motif: Option<TriangleMotif>) -> Self {
+        let boost = match motif {
+            Some(TriangleMotif::IsoscelesLeft)     => 1.12,
+            Some(TriangleMotif::ScaleneProjecting) => 1.18,
+            Some(TriangleMotif::CrossHemisphere)   => 1.25,
+            None => 1.0,
+        };
+        Self {
+            pre, post,
+            weight: maya_quantize(weight),
+            level:  weight_to_level(weight),
+            motif,
+            boost,
+        }
+    }
+
+    #[inline(always)]
+    pub fn effective_weight(&self) -> f32 {
+        self.weight * self.boost
+    }
+}
