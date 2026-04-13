@@ -119,14 +119,14 @@ export function CryptoPayModal({ open, plan, onClose }: Props) {
   }, []);
 
   // ── Auto-verify SOL transaction on-chain ──────────────────────────────────
-  const verifySolTx = useCallback(async (signature: string) => {
+  const verifySolTx = useCallback(async (signature: string, sender: string) => {
     setStatus("verifying");
     try {
       const res = await fetch(VERIFY_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ signature, plan, senderAddress: solAddr }),
+        body: JSON.stringify({ signature, plan, senderAddress: sender }),
       });
       const data = await res.json() as { verified: boolean; error?: string };
       if (data.verified) {
@@ -188,8 +188,8 @@ export function CryptoPayModal({ open, plan, onClose }: Props) {
       tx.feePayer = fromPubkey;
       const { signature } = await prov.signAndSendTransaction(tx);
       setTxSig(signature);
-      // Auto-verify on-chain immediately
-      await verifySolTx(signature);
+      // Auto-verify on-chain immediately — pass solAddr explicitly to avoid stale closure
+      await verifySolTx(signature, solAddr);
     } catch (e: unknown) {
       setErrMsg(e instanceof Error ? e.message : "Transaction failed");
       setStatus("idle");

@@ -99,7 +99,13 @@ router.post("/solana/verify", async (req: Request, res: Response) => {
 
   // Validate sender identity to prevent signature reuse across users.
   if (senderAddress) {
-    const senderPubkey = new PublicKey(senderAddress);
+    let senderPubkey: PublicKey;
+    try {
+      senderPubkey = new PublicKey(senderAddress);
+    } catch {
+      res.status(400).json({ verified: false, error: "Invalid senderAddress — must be a base58 Solana public key." });
+      return;
+    }
     if (accountKeys.length === 0 || !accountKeys[0]!.equals(senderPubkey)) {
       res.json({ verified: false, error: "Sender mismatch — transaction was not signed by your wallet." });
       return;
