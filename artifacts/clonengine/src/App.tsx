@@ -11,6 +11,8 @@
 //  Layer 8  App.tsx                ← this file: Nav + sections + footer
 
 import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
+import { useSession, signOut } from "@workspace/api-client-react";
 import { TICKER_ITEMS }   from "./tokens";
 import { HeroCanvas }     from "./canvas/HeroCanvas";
 import { SciCanvas }      from "./canvas/SciCanvas";
@@ -32,6 +34,8 @@ export default function App() {
   const [cryptoPlan, setCryptoPlan] = useState("Pro");
   const [bamOpen,    setBamOpen]   = useState(false);
   const [bamUser,    setBamUser]   = useState("");
+  const [, navigate] = useLocation();
+  const { data: session } = useSession();
 
   const openDL   = (e: React.MouseEvent) => { e.preventDefault(); setDlOpen(true); };
   const openPriv = (e: React.MouseEvent) => { e.preventDefault(); setPrivOpen(true); };
@@ -78,13 +82,23 @@ export default function App() {
             <li><a href="#benchmarks">Benchmarks</a></li>
             <li><a href="#pricing">Pricing</a></li>
             <li>
-              <button
-                className={`nav-login${bamUser ? " active" : ""}`}
-                onClick={() => setBamOpen(true)}
-                title={bamUser ? `Logged in as ${bamUser}` : "Login with passkey / fingerprint"}
-              >
-                {bamUser ? `✓ Logged in · ${bamUser}` : "Login / Register"}
-              </button>
+              {session?.user ? (
+                <button
+                  className="nav-login active"
+                  onClick={() => navigate("/dashboard")}
+                  title={`Dashboard — ${session.user.email}`}
+                >
+                  ✓ Dashboard →
+                </button>
+              ) : (
+                <button
+                  className={`nav-login${bamUser ? " active" : ""}`}
+                  onClick={() => setBamOpen(true)}
+                  title={bamUser ? `Logged in as ${bamUser}` : "Login / Register"}
+                >
+                  {bamUser ? `✓ ${bamUser}` : "Login / Register"}
+                </button>
+              )}
             </li>
             <li><a href="#pricing" className="nav-cta">Kill my lag →</a></li>
           </ul>
