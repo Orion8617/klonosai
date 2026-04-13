@@ -32,9 +32,10 @@ export function izhi(n: Neuron, I: number): boolean {
 }
 
 // Stage 1: Pascal 3D Frustum — importance weight 0..1 (center = 1.0, corners ≈ 0.004)
+// Math.max(0,...) guards against negative x/y on narrow mobile screens
 export function pascalImp(x: number, y: number, W: number, H: number): number {
-  const bx = Math.min(4, Math.floor(x / W * 5));
-  const by = Math.min(4, Math.floor(y / H * 5));
+  const bx = Math.min(4, Math.max(0, Math.floor(x / W * 5)));
+  const by = Math.min(4, Math.max(0, Math.floor(y / H * 5)));
   return (P4[bx] * 16) * (P4[by] * 16) / 16;
 }
 

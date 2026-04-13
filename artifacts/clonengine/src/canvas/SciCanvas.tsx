@@ -46,17 +46,24 @@ export function SciCanvas({ onSpk }: { onSpk: (n: number) => void }) {
     // SpikeForge edge buckets — reused every frame
     const oBkt = new Map<number, number[]>();
     const cBkt = new Map<number, number[]>();
-    let tk = 0, tot = 0, sc2 = 0, thetaPhase = 0;
+    let tk = 0, sc2 = 0, thetaPhase = 0;
+    let spkAcc = 0; // accumulated spikes — emitted every THETA_PERIOD frames (~6Hz)
 
     function draw() {
       raf = requestAnimationFrame(draw);
       if (document.hidden) return;
-      tk++; tot = 0;
+      tk++;
       cx.fillStyle = "rgba(2,12,24,.25)"; cx.fillRect(0, 0, W, H);
 
-      // Schumann 7.83Hz + Theta scheduler
+      // Schumann 7.83Hz + Theta scheduler — emit spike count on theta tick
       sc2 += 7.83 / 60; const sf2 = sc2 >= 1; if (sf2) sc2 -= 1;
-      thetaPhase++; if (thetaPhase >= THETA_PERIOD) { thetaPhase = 0; for (let i = 0; i < ns.length; i++) sciPw[i] = pascalImp(ns[i].x, ns[i].y, W, H); }
+      thetaPhase++;
+      if (thetaPhase >= THETA_PERIOD) {
+        thetaPhase = 0;
+        for (let i = 0; i < ns.length; i++) sciPw[i] = pascalImp(ns[i].x, ns[i].y, W, H);
+        onSpk(spkAcc); // emit accumulated count once per theta cycle
+        spkAcc = 0;
+      }
 
       // SNN step
       const inp = new Float32Array(ns.length);
@@ -65,7 +72,7 @@ export function SciCanvas({ onSpk }: { onSpk: (n: number) => void }) {
         const n = ns[i];
         const I = inp[i] + (Math.random() - .3) * 4 + (i % 17 === tk % 17 ? 5 : 0) + (sf2 && i % 3 === 0 ? 6 : 0);
         if (n.f === 0 && n.v < -62 && Math.abs(I) < 1.5) { n.v += .04 * n.v * n.v * .002 + I * .04; }
-        else { if (izhi(n, I)) tot++; }
+        else { if (izhi(n, I)) spkAcc++; }
       }
 
       // Stage 3: Vigesimal edge batches + Stage 1 Pascal gate + §10 Bilateral
@@ -114,8 +121,6 @@ export function SciCanvas({ onSpk }: { onSpk: (n: number) => void }) {
         cx.closePath(); cx.fill();
       }
       cx.shadowBlur = 0; cx.shadowColor = "transparent";
-
-      onSpk(tot);
     }
 
     raf = requestAnimationFrame(draw);
