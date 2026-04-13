@@ -3,7 +3,7 @@
 //          engine/orbital (SATS)
 // Output:  <canvas id="hero-canvas"> full-bleed background animation
 import { useEffect, useRef } from "react";
-import { Neuron, izhi, pascalImp, BILATERAL_K, THETA_PERIOD } from "../engine/snn";
+import { Neuron, izhi, pascalImp, vigesimal, BILATERAL_K, THETA_PERIOD } from "../engine/snn";
 import { SATS } from "../engine/orbital";
 
 export function HeroCanvas() {
@@ -144,7 +144,7 @@ export function HeroCanvas() {
         // Ground link — satellite → globe surface intercept
         const dx = GX - pa.sx, dy = GY - pa.sy, d = Math.hypot(dx, dy);
         const gsx = pa.sx + dx * (1 - GR / d), gsy = pa.sy + dy * (1 - GR / d);
-        const alpha1 = Math.round((.08 + snn[ni].f / 12 * .14) * 20) / 20;
+        const alpha1 = vigesimal(.08 + snn[ni].f / 12 * .14);
         const bkt1 = s.l ? oBkt : cBkt;
         let arr1 = bkt1.get(alpha1); if (!arr1) { arr1 = []; bkt1.set(alpha1, arr1); }
         arr1.push(pa.sx, pa.sy, gsx, gsy);
@@ -154,8 +154,8 @@ export function HeroCanvas() {
           const s2 = SATS[sj]; if (!snn[s2.ni].f) continue;
           const pb = eciPt(s2.inc, s2.raan, s2.angle, s2.rMult);
           if (Math.hypot(pb.sx - pa.sx, pb.sy - pa.sy) > GR * 3.8) continue;
-          let ea = Math.round((.07 + snn[ni].f / 12 * .11) * 20) / 20;
-          if (s.l !== s2.l) ea = Math.round(ea * BILATERAL_K * 20) / 20;
+          let ea = vigesimal(.07 + snn[ni].f / 12 * .11);
+          if (s.l !== s2.l) ea = vigesimal(ea * BILATERAL_K);
           if (ea < 0.04) continue;
           const bkt2 = s.l ? oBkt : cBkt;
           let arr2 = bkt2.get(ea); if (!arr2) { arr2 = []; bkt2.set(ea, arr2); }

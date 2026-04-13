@@ -2,7 +2,7 @@
 // Inputs:  engine/snn (Neuron, izhi, pascalImp, lodR, PASCAL_CULL, BILATERAL_K, THETA_PERIOD)
 // Output:  <canvas id="sci-canvas"> + spike count callback
 import { useEffect, useRef } from "react";
-import { Neuron, izhi, pascalImp, lodR, PASCAL_CULL, BILATERAL_K, THETA_PERIOD } from "../engine/snn";
+import { Neuron, izhi, pascalImp, lodR, vigesimal, PASCAL_CULL, BILATERAL_K, THETA_PERIOD } from "../engine/snn";
 
 export function SciCanvas({ onSpk }: { onSpk: (n: number) => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -77,9 +77,9 @@ export function SciCanvas({ onSpk }: { onSpk: (n: number) => void }) {
         const imp = Math.max(sciPw[a], sciPw[b]);
         if (imp < PASCAL_CULL) continue;
         const src = na.f >= nb.f ? na : nb;
-        let alpha = Math.round((.1 + src.f / 12 * .2) * 20) / 20;
+        let alpha = vigesimal(.1 + src.f / 12 * .2);
         if (na.l !== nb.l) alpha *= BILATERAL_K;
-        alpha = Math.round(alpha * 20) / 20;
+        alpha = vigesimal(alpha);
         if (alpha < 0.04) continue;
         const bkt = src.l ? oBkt : cBkt;
         let arr = bkt.get(alpha); if (!arr) { arr = []; bkt.set(alpha, arr); }

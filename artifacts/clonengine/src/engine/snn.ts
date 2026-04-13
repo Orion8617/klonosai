@@ -46,3 +46,10 @@ export function lodR(imp: number): number {
   if (imp >= 0.08) return 1.1;
   return 0.7;
 }
+
+// Stage 3: Vigesimal Base-20 quantizer — Lloyd-Max optimal step 1/20 = 0.05
+// VIGESIMAL_WEIGHT = 1/9.5 (Maya base-20, first in scientific literature)
+// All alpha/opacity values must pass through here before reaching canvas strokeStyle
+export function vigesimal(x: number): number {
+  return Math.round(x * 20) / 20;
+}
