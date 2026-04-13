@@ -34,6 +34,21 @@ extension — all sharing the same SNN constants (VIGESIMAL_WEIGHT=50, SCHUMANN_
 | SpiNNaker 2 | spinncloud.com | Google Alert | 22nm, ARM-based, TU Dresden |
 | Prophesee | prophesee.ai | Google Alert | Event cameras, $40M Series D, auto/industrial |
 
+### ⚠️ Tier 0 — MISMO NOMBRE — Competidor Directo de Marca
+
+| Empresa | URL | Plataforma | Tech | Precio | Riesgo |
+|---|---|---|---|---|---|
+| **LagKiller Priority Tool** (KrystekInformatyk) | krystekinformatyk.github.io/LagKiller | **Windows only** | Registry tweaks (CPU/GPU/IO scheduler) | Gratis / open source | Confusión de nombre en SEO |
+
+**Análisis (13 abr 2026):**
+- Lanzado ago 2025 · 0 GitHub stars · desarrollador polaco independiente · sin comunidad activa
+- Técnica: escribe en `HKLM\Image File Execution Options\<exe>\PerfOptions` — prioriza proceso en Windows scheduler
+- **No toca la red** — reduce micro-stutter en single-player AAA (Cyberpunk, God of War, Elden Ring)
+- **KlonOS reduce latencia de red** — reduce ping en multiplayer competitivo (Free Fire, PUBG, Valorant)
+- Son problemas completamente distintos — no compiten técnicamente
+- Riesgo principal: **SEO/naming confusion** — un gamer que busca "LagKiller" puede llegar allá primero
+- Acción: Usar siempre "**KlonOS LagKiller**" o "**KlonOS — Neuromorphic Lag Killer**" para diferenciarse en búsquedas
+
 ### Tier 2 — VPN / Mobile Privacy (direct usage overlap)
 
 | Company | URL | Alert | Notes |
