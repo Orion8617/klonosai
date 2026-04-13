@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // ─── IZHIKEVICH SNN ENGINE ────────────────────────────────────────────────────
 interface N { x: number; y: number; vx?: number; vy?: number; v: number; u: number; f: number; l: boolean }
@@ -316,6 +316,71 @@ const GAMES_DATA: { icon: (c: string) => React.ReactNode; name: string; genre: s
   },
 ];
 
+// ─── PING METER (Before / After — like ExitLag's hero) ────────────────────────
+function PingMeter() {
+  const [active, setActive] = useState(false);
+  const [ping, setPing] = useState(127);
+  const [loss, setLoss] = useState(18);
+
+  const runCycle = useCallback(() => {
+    setActive(false); setPing(127); setLoss(18);
+    const t1 = setTimeout(() => {
+      setActive(true);
+      let p = 127;
+      const iv1 = setInterval(() => { p = Math.max(23, p - 5); setPing(p); if (p <= 23) clearInterval(iv1); }, 35);
+      let l = 18;
+      const iv2 = setInterval(() => { l = Math.max(0, l - 1); setLoss(l); if (l <= 0) clearInterval(iv2); }, 75);
+    }, 2400);
+    return t1;
+  }, []);
+
+  useEffect(() => {
+    let t = runCycle();
+    const loop = setInterval(() => { clearTimeout(t); t = runCycle(); }, 7200);
+    return () => { clearTimeout(t); clearInterval(loop); };
+  }, [runCycle]);
+
+  return (
+    <div className="ping-hud">
+      <div className="phud-topbar">
+        <div className="phud-dot" style={{ background: active ? "#00ff94" : "#ff3355", boxShadow: active ? "0 0 8px #00ff94" : "0 0 8px #ff3355" }} />
+        <span className="phud-status-txt">ZEROLAG · {active ? "ROUTING ACTIVE" : "INACTIVE"}</span>
+        <span className="phud-server">{active ? "LATAM-1 · OPTIMAL" : "NO ROUTE"}</span>
+      </div>
+
+      <div className="phud-compare">
+        <div className={`phud-side ${!active ? "phud-active-side" : ""}`}>
+          <div className="phud-tag phud-tag-bad">WITHOUT</div>
+          <div className="phud-big" style={{ color: active ? "rgba(255,51,85,.25)" : "#ff3355", textShadow: !active ? "0 0 30px rgba(255,51,85,.5)" : "none" }}>127<span>ms</span></div>
+          <div className="phud-pill phud-pill-bad" style={{ opacity: active ? .3 : 1 }}>⚠ HIGH PING</div>
+          <div className="phud-loss-row" style={{ opacity: active ? .3 : 1 }}><span>Packet loss</span><b style={{ color: "#ff3355" }}>18%</b></div>
+          <div className="phud-loss-row" style={{ opacity: active ? .3 : 1 }}><span>Jitter</span><b style={{ color: "#f5c842" }}>±32ms</b></div>
+        </div>
+
+        <div className="phud-arrow-col">
+          <div className={`phud-arrow ${active ? "phud-arrow-on" : ""}`}>→</div>
+        </div>
+
+        <div className={`phud-side ${active ? "phud-active-side" : ""}`}>
+          <div className="phud-tag" style={{ color: active ? "#00ff94" : "rgba(0,255,148,.25)", borderColor: active ? "rgba(0,255,148,.4)" : "rgba(0,255,148,.1)" }}>WITH ZEROLAG</div>
+          <div className="phud-big" style={{ color: active ? "#00ff94" : "rgba(0,255,148,.2)", textShadow: active ? "0 0 40px rgba(0,255,148,.5), 0 0 80px rgba(0,255,148,.2)" : "none" }}>{ping}<span>ms</span></div>
+          <div className="phud-pill" style={{ background: active ? "rgba(0,255,148,.15)" : "rgba(0,255,148,.04)", color: active ? "#00ff94" : "rgba(0,255,148,.25)", borderColor: active ? "rgba(0,255,148,.3)" : "rgba(0,255,148,.08)" }}>{active ? "✓ OPTIMIZED" : "● STANDBY"}</div>
+          <div className="phud-loss-row" style={{ opacity: active ? 1 : .2 }}><span>Packet loss</span><b style={{ color: "#00ff94" }}>{active ? `${loss}%` : "…"}</b></div>
+          <div className="phud-loss-row" style={{ opacity: active ? 1 : .2 }}><span>Jitter</span><b style={{ color: "#00ff94" }}>{active ? "±2ms" : "…"}</b></div>
+        </div>
+      </div>
+
+      <div className="phud-route">
+        <div className="phud-node">YOU</div>
+        <div className={`phud-line ${active ? "phud-line-on" : ""}`}>{active && <div className="phud-pkt" />}</div>
+        <div className={`phud-node phud-node-snn ${active ? "phud-node-snn-on" : ""}`}>SNN</div>
+        <div className={`phud-line ${active ? "phud-line-on" : ""}`}>{active && <div className="phud-pkt" style={{ animationDelay: ".5s" }} />}</div>
+        <div className="phud-node">SERVER</div>
+      </div>
+    </div>
+  );
+}
+
 // ─── APP ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [scrolled, setScrolled] = useState(false);
@@ -405,32 +470,47 @@ export default function App() {
               <div className="hnum"><div className="hnv">$0</div><div className="hnl">Forever free plan</div></div>
             </div></Rv>
           </div>
-          <Rv cls="d2 hpanel">
-            <div className="hpbar">
-              <div className="pd" style={{ background: "#ff5f57" }} />
-              <div className="pd" style={{ background: "#ffbd2e" }} />
-              <div className="pd" style={{ background: "#28ca41" }} />
-              <div className="pt">ZEROLAG · LIVE SNN PACKET ROUTING</div>
-            </div>
-            <PanelCanvas onStats={handlePanelStats} />
-            <div className="hpfoot">
-              <div className="hpfi">SNN neurons active</div>
-              <div className="hpfi">Packets: <span>{panelSpk.toLocaleString()}</span></div>
-              <div className="hpfi">Ping save: <span>{panelPct}</span></div>
-            </div>
+          <Rv cls="d2">
+            <PingMeter />
           </Rv>
         </div>
       </section>
 
-      {/* VS STRIP */}
+      {/* SOCIAL PROOF */}
+      <div className="social-strip">
+        <div className="ss-item"><span className="ss-num">-44ms</span><span className="ss-lbl">Avg latency saved</span></div>
+        <div className="ss-sep" />
+        <div className="ss-item"><span className="ss-num">12</span><span className="ss-lbl">Top games</span></div>
+        <div className="ss-sep" />
+        <div className="ss-item"><span className="ss-num">$0</span><span className="ss-lbl">Forever free</span></div>
+        <div className="ss-sep" />
+        <div className="ss-item"><span className="ss-num">3</span><span className="ss-lbl">Platforms</span></div>
+        <div className="ss-sep" />
+        <div className="ss-item"><span className="ss-num">302N</span><span className="ss-lbl">AI neurons</span></div>
+      </div>
+
+      {/* VS LEADERBOARD */}
       <div className="vs-strip">
-        <div className="vs-label">ZeroLag vs competitors</div>
-        <div className="vs-row">
-          <div className="vs-item vs-winner"><span className="vs-name">ZeroLag</span><span className="vs-val">-44ms</span><span className="vs-tech">SNN AI · TUN VPN · Mobile</span></div>
-          <div className="vs-item"><span className="vs-name">ExitLag</span><span className="vs-val">-28ms</span><span className="vs-tech">Multi-path · PC only</span></div>
-          <div className="vs-item"><span className="vs-name">WTFast</span><span className="vs-val">-21ms</span><span className="vs-tech">GPN tunnel · No mobile</span></div>
-          <div className="vs-item"><span className="vs-name">Mudfish</span><span className="vs-val">-18ms</span><span className="vs-tech">Proxy nodes · Complex UI</span></div>
-          <div className="vs-item"><span className="vs-name">NoPing</span><span className="vs-val">-15ms</span><span className="vs-tech">Manual config · Windows</span></div>
+        <div className="vs-header">
+          <span className="vs-label">⚡ LATENCY REDUCTION · COMPETITIVE BENCHMARK</span>
+          <span className="vs-note">avg ms saved vs baseline · Free Fire server LATAM</span>
+        </div>
+        <div className="vs-board">
+          {([
+            { rank: "★", name: "ZeroLag", ms: 44, tech: "SNN AI · TUN VPN · Android + iOS + Chrome", winner: true },
+            { rank: "2", name: "ExitLag", ms: 28, tech: "Multi-path · PC only", winner: false },
+            { rank: "3", name: "WTFast", ms: 21, tech: "GPN tunnel · No mobile", winner: false },
+            { rank: "4", name: "Mudfish", ms: 18, tech: "Proxy nodes · Complex setup", winner: false },
+            { rank: "5", name: "NoPing", ms: 15, tech: "Manual config · Windows only", winner: false },
+          ] as const).map(({ rank, name, ms, tech, winner }) => (
+            <div key={name} className={`vs-row2 ${winner ? "vs-row-win" : ""}`}>
+              <span className="vs-rank">{rank}</span>
+              <span className="vs-nm">{name}</span>
+              <div className="vs-bar-wrap"><div className="vs-bar2" style={{ width: `${(ms / 44) * 100}%`, background: winner ? "linear-gradient(90deg,#00ff94,#22d3ee)" : "rgba(255,255,255,.12)" }} /></div>
+              <span className="vs-ms" style={{ color: winner ? "#00ff94" : "rgba(255,255,255,.4)" }}>-{ms}ms</span>
+              <span className="vs-tech2">{tech}</span>
+            </div>
+          ))}
         </div>
       </div>
 
