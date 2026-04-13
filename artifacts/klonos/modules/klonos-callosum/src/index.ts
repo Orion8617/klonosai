@@ -30,6 +30,15 @@ export interface CallosumBenchmark {
   casFail: number;
 }
 
+export interface IECResultado {
+  opsTotales: number;
+  opsPorSegundo: number;
+  latenciaNs: number;
+  iecGlobal: number;      // 0–100 (80M ops/s = 100)
+  iecIsosceles: number;   // iecGlobal × 1.15 — action hemisphere
+  iecEquilatero: number;  // iecGlobal × 0.85 — balance hemisphere
+}
+
 // ─── Module not available guard ───────────────────────────────────
 
 function assertAvailable() {
@@ -191,5 +200,58 @@ export const VulkanFusion = {
       if (act > bestVal) { bestVal = act; bestNode = i; }
     }
     return bestNode;
+  },
+};
+
+// ─── Cerebelo — Motor Geométrico ─────────────────────────────────
+// Multi-threaded geometric benchmark: 49 scalene + 50 isosceles triangle
+// area operations per tick (Heron's formula). IEC score: 0–100 where
+// 80M ops/sec = 100 points. Mirrors the 64 triangular motifs in callosum.
+
+export const Cerebelo = {
+  /**
+   * Detect optimal thread count for the device.
+   * Mobile: min(cores/2, 8) | Desktop: min(cores, 64)
+   */
+  detectarHilos(): Promise<number> {
+    assertAvailable();
+    return KlonosCallosum.cerebeloDetectarHilos();
+  },
+
+  /**
+   * Initialize the geometric motor.
+   * hilos: 0 = auto-detect | duracion: 0 = 5s default
+   */
+  inicializar(hilos = 0, duracion = 5, ahorroBateria = false): Promise<boolean> {
+    assertAvailable();
+    return KlonosCallosum.cerebeloInicializar(hilos, duracion, ahorroBateria);
+  },
+
+  /**
+   * Run the benchmark. Resolves after duracion seconds with the IEC score.
+   * Non-blocking — runs on a native background thread.
+   */
+  async ejecutar(): Promise<IECResultado> {
+    assertAvailable();
+    await KlonosCallosum.cerebeloEjecutar();
+    return KlonosCallosum.cerebeloGetResultados();
+  },
+
+  /** Interrupt a running benchmark from another context. */
+  detener(): Promise<void> {
+    assertAvailable();
+    return KlonosCallosum.cerebeloDetener();
+  },
+
+  /** Read results without re-running. */
+  getResultados(): Promise<IECResultado> {
+    assertAvailable();
+    return KlonosCallosum.cerebeloGetResultados();
+  },
+
+  /** Release all native resources. */
+  liberar(): Promise<void> {
+    assertAvailable();
+    return KlonosCallosum.cerebeloLiberar();
   },
 };
