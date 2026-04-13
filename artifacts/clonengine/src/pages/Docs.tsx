@@ -145,30 +145,20 @@ export default function Docs() {
       <NavBar />
       <div className="page-shell">
 
-        {/* ── PAGE HEADER ── */}
-        <div className="page-hero docs-hero">
-          <div className="wrap">
-            <div className="sb">KlonOS · Technical Documentation</div>
-            <h1 className="stitle display" style={{ fontSize: 52, marginBottom: 12 }}>
-              Docs &amp; <em>Revision Control</em>
-            </h1>
-            <p className="ssub" style={{ maxWidth: 560 }}>
-              Changelog, API reference, architecture guide, and build instructions.
-            </p>
-          </div>
-        </div>
-
         {/* ── TAB BAR ── */}
-        <div className="inner-tabs-bar">
+        <div className="inner-tabs-bar inner-tabs-top">
           <div className="wrap">
-            <div className="inner-tabs">
-              {TABS.map(t => (
-                <button
-                  key={t}
-                  className={`inner-tab${tab === t ? " inner-tab-active" : ""}`}
-                  onClick={() => setTab(t)}
-                >{t}</button>
-              ))}
+            <div className="inner-tabs-header">
+              <div className="itb-title">Docs <em>&amp; Revision Control</em></div>
+              <div className="inner-tabs">
+                {TABS.map(t => (
+                  <button
+                    key={t}
+                    className={`inner-tab${tab === t ? " inner-tab-active" : ""}`}
+                    onClick={() => setTab(t)}
+                  >{t}</button>
+                ))}
+              </div>
             </div>
           </div>
         </div>

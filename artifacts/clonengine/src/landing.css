@@ -958,6 +958,11 @@ footer{border-top:1px solid var(--border);padding:64px 0 32px}
    ═══════════════════════════════════════════════════════════════════════════ */
 .inner-tabs-bar{border-bottom:1px solid rgba(200,223,240,.1);position:sticky;top:70px;z-index:40;
   background:rgba(2,12,24,.92);backdrop-filter:blur(12px)}
+.inner-tabs-top{border-top:1px solid rgba(200,223,240,.08)}
+.inner-tabs-header{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.itb-title{font-family:var(--f-display);font-size:1rem;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--text);white-space:nowrap;padding:16px 0}
+.itb-title em{color:var(--prime);font-style:normal}
 .inner-tabs{display:flex;gap:0;overflow-x:auto}
 .inner-tab{padding:14px 24px;font-size:.85rem;letter-spacing:.08em;text-transform:uppercase;
   font-family:var(--f-mono);color:var(--muted);background:none;border:none;cursor:pointer;

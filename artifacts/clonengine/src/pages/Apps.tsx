@@ -133,19 +133,6 @@ export default function Apps() {
       <DownloadModal open={dlOpen} onClose={() => setDlOpen(false)} />
       <div className="page-shell">
 
-        {/* ── PAGE HEADER ── */}
-        <div className="page-hero apps-hero">
-          <div className="wrap">
-            <div className="sb">KlonOS · Product Suite</div>
-            <h1 className="stitle display" style={{ fontSize: 52, marginBottom: 12 }}>
-              All <em>Apps</em>
-            </h1>
-            <p className="ssub" style={{ maxWidth: 560 }}>
-              Six products built on one biological core — from gaming VPN to scientific SDK.
-            </p>
-          </div>
-        </div>
-
         {/* ── APP TAB SIDEBAR + CONTENT ── */}
         <div className="wrap apps-layout">
 

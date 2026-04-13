@@ -16,31 +16,20 @@ export default function Engineering() {
       <NavBar />
       <div className="page-shell">
 
-        {/* ── PAGE HEADER ── */}
-        <div className="page-hero eng-hero">
-          <div className="wrap">
-            <div className="sb">ClonEngine · Technical Division</div>
-            <h1 className="stitle display" style={{ fontSize: 52, marginBottom: 12 }}>
-              Engineering &amp; <em>Innovation</em>
-            </h1>
-            <p className="ssub" style={{ maxWidth: 600 }}>
-              Neuromorphic computing architecture — real biology, real benchmarks, real math.
-              Everything is independently verifiable.
-            </p>
-          </div>
-        </div>
-
         {/* ── TAB BAR ── */}
-        <div className="inner-tabs-bar">
+        <div className="inner-tabs-bar inner-tabs-top">
           <div className="wrap">
-            <div className="inner-tabs">
-              {TABS.map(t => (
-                <button
-                  key={t}
-                  className={`inner-tab${tab === t ? " inner-tab-active" : ""}`}
-                  onClick={() => setTab(t)}
-                >{t}</button>
-              ))}
+            <div className="inner-tabs-header">
+              <div className="itb-title">Engineering <em>&amp; Innovation</em></div>
+              <div className="inner-tabs">
+                {TABS.map(t => (
+                  <button
+                    key={t}
+                    className={`inner-tab${tab === t ? " inner-tab-active" : ""}`}
+                    onClick={() => setTab(t)}
+                  >{t}</button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
