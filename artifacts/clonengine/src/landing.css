@@ -365,8 +365,8 @@ h1.ht{font-size:clamp(52px,6.8vw,96px);margin-bottom:20px;line-height:.88}
 
 /* ─── PRICING ─────────────────────────────────────────────────────────────── */
 #pricing{background:var(--bg)}
-.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;align-items:start}
-.pc{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:36px;position:relative;transition:transform .3s,box-shadow .3s}
+.pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:start}
+.pc{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:28px;position:relative;transition:transform .3s,box-shadow .3s}
 .pc:hover{transform:translateY(-6px);box-shadow:0 24px 48px rgba(0,0,0,.5)}
 .pc.pop{background:linear-gradient(160deg,var(--card2) 0%,#0d1a10 100%);border-color:rgba(255,122,26,.28)}
 .pbdg{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--prime);color:#000;font-family:var(--f-mono);font-size:9px;letter-spacing:.15em;padding:4px 18px;border-radius:2px;white-space:nowrap}
@@ -452,6 +452,9 @@ footer{border-top:1px solid var(--border);padding:64px 0 32px}
 .d1{transition-delay:.1s}.d2{transition-delay:.2s}.d3{transition-delay:.3s}.d4{transition-delay:.4s}
 
 /* ─── RESPONSIVE ──────────────────────────────────────────────────────────── */
+@media(max-width:1200px){
+  .pgrid{grid-template-columns:repeat(2,1fr)}
+}
 @media(max-width:960px){
   .hero-in{grid-template-columns:1fr}
   .pipe{grid-template-columns:1fr 1fr}

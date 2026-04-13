@@ -372,10 +372,10 @@ export default function App() {
       {/* ── PRICING ───────────────────────────────────────────────────────── */}
       <section id="pricing">
         <div className="wrap">
-          <Rv cls="sh" style={{ textAlign: "center", maxWidth: 560, margin: "0 auto 72px" }}>
+          <Rv cls="sh" style={{ textAlign: "center", maxWidth: 640, margin: "0 auto 72px" }}>
             <div className="sb">Pricing</div>
             <h2 className="stitle display">Kill your ping.<br /><em>Choose your plan.</em></h2>
-            <p className="ssub">Solo player, squad grinder, or gaming café owner — there's a plan built for you. No tricks, no confusion.</p>
+            <p className="ssub">Solo player, squad grinder, researcher, or gaming café owner — there's a plan for you. No tricks, no confusion.</p>
           </Rv>
           <div className="pgrid">
 
@@ -407,18 +407,38 @@ export default function App() {
               <div className="pdiv" />
               <ul className="pfeats">
                 <li><span className="ok">✓</span><span>Everything in Free</span></li>
-                <li><span className="ok">✓</span><span><span className="fem">300× smarter AI</span> — 139,255 neurons</span></li>
-                <li><span className="ok">✓</span><span>Multi-hop routing — less jitter, steadier ping</span></li>
+                <li><span className="ok">✓</span><span><span className="fem">Enhanced AI routing</span> — multi-hop paths</span></li>
+                <li><span className="ok">✓</span><span>Less jitter, steadier ping under load</span></li>
                 <li><span className="ok">✓</span><span><span className="fem">12 games</span> — Valorant, COD, Fortnite + more</span></li>
                 <li><span className="ok">✓</span><span>5 devices — share with your squad or family</span></li>
                 <li><span className="ok">✓</span><span>Live analytics — ms saved per game session</span></li>
                 <li><span className="ok">✓</span><span>Priority server queue at peak hours</span></li>
-                <li><span className="no">—</span><span style={{ opacity: .35 }}>Café dashboard (Enterprise)</span></li>
+                <li><span className="no">—</span><span style={{ opacity: .35 }}>Drosophila 139K engine (Science)</span></li>
               </ul>
               <a href="#" className="pbtn pbtn-m">Start Pro — 14 days free</a>
             </Rv>
 
             <Rv cls="pc d2">
+              <div className="pbadge" style={{ background: "rgba(155,93,229,.12)", color: "#c084fc", border: "1px solid rgba(155,93,229,.35)" }}>◈ SCIENCE</div>
+              <div className="ptier">Researcher · Developer</div>
+              <div className="pname2">Drosophila</div>
+              <div className="pamt" style={{ color: "#c084fc", textShadow: "0 0 28px rgba(155,93,229,.5)" }}>$99<sub>/mo</sub></div>
+              <div className="pper">or $799/year · Up to 10 devices</div>
+              <div className="pdiv" />
+              <ul className="pfeats">
+                <li><span className="ok" style={{ color: "#c084fc" }}>✓</span><span>Everything in Pro</span></li>
+                <li><span className="ok" style={{ color: "#c084fc" }}>✓</span><span><span className="fem">139,255-neuron Drosophila engine</span> — 433× C. elegans</span></li>
+                <li><span className="ok" style={{ color: "#c084fc" }}>✓</span><span><span className="fem">Schumann 7.83Hz lock</span> — full sync mode active</span></li>
+                <li><span className="ok" style={{ color: "#c084fc" }}>✓</span><span><span className="fem">Export CSV</span> — every session, every ms saved</span></li>
+                <li><span className="ok" style={{ color: "#c084fc" }}>✓</span><span>10 devices · NEAT topology evolution on</span></li>
+                <li><span className="ok" style={{ color: "#c084fc" }}>✓</span><span>Raw SNN telemetry dashboard</span></li>
+                <li><span className="ok" style={{ color: "#c084fc" }}>✓</span><span>All 12 games + beta game support</span></li>
+                <li><span className="no">—</span><span style={{ opacity: .35 }}>White-label / café dashboard (Enterprise)</span></li>
+              </ul>
+              <a href="mailto:klonengine@proton.me" className="pbtn" style={{ background: "rgba(155,93,229,.15)", border: "1px solid rgba(155,93,229,.45)", color: "#c084fc", marginTop: 28 }}>Get Drosophila →</a>
+            </Rv>
+
+            <Rv cls="pc d3">
               <div className="ptier">Cibercafé · Esports Org</div>
               <div className="pname2">Enterprise</div>
               <div className="pamt">$299<sub>/mo</sub></div>
