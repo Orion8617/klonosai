@@ -7,6 +7,10 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// Trust the first hop (Replit proxy, nginx, etc.) so that secure cookies
+// work correctly when TLS is terminated upstream.
+app.set("trust proxy", 1);
+
 const SESSION_SECRET = process.env["SESSION_SECRET"];
 if (process.env["NODE_ENV"] === "production" && !SESSION_SECRET) {
   throw new Error("SESSION_SECRET environment variable must be set in production");

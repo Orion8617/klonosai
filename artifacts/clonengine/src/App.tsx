@@ -83,7 +83,7 @@ export default function App() {
                 onClick={() => setBamOpen(true)}
                 title={bamUser ? `Logged in as ${bamUser}` : "Login with passkey / fingerprint"}
               >
-                {bamUser ? `☝ ${bamUser}` : "☝ Login"}
+                {bamUser ? `✓ Logged in · ${bamUser}` : "Login / Register"}
               </button>
             </li>
             <li><a href="#pricing" className="nav-cta">Kill my lag →</a></li>
