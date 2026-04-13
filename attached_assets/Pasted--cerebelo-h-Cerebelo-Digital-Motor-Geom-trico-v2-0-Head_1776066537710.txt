@@ -1,0 +1,106 @@
+// cerebelo.h
+// Cerebelo Digital - Motor Geométrico v2.0
+// Header C para integración con iOS/Swift y otros lenguajes
+
+#ifndef CEREBELO_H
+#define CEREBELO_H
+
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DETECCIÓN DE HARDWARE
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Detecta el número óptimo de hilos para el dispositivo
+// En móviles con feature 'mobile': min(cpus_físicos/2, 8)
+// En desktop: min(cpus_lógicos, 64)
+unsigned int cerebelo_detectar_hilos(void);
+
+// Detecta hilos para modo ahorro de batería
+// Retorna: max(cpus_físicos/4, 1), máximo 4 hilos
+unsigned int cerebelo_detectar_hilos_ahorro(void);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INICIALIZACIÓN Y CONTROL
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Inicializa el motor geométrico
+// num_hilos: 0 = auto-detectar, o especificar cantidad (1-64)
+// duracion_seg: duración del benchmark en segundos (0 = 5 segundos)
+// ahorro_bateria: 0 = rendimiento máximo, 1 = ahorro de batería
+// Retorna: 1 = éxito, 0 = error
+int cerebelo_inicializar(unsigned int num_hilos, unsigned int duracion_seg, int ahorro_bateria);
+
+// Ejecuta el benchmark completo
+// Bloquea el hilo actual durante duracion_seg segundos
+// Retorna: 1 = éxito, 0 = motor no inicializado
+int cerebelo_ejecutar_benchmark(void);
+
+// Detiene el benchmark en ejecución (llamar desde otro hilo)
+void cerebelo_detener(void);
+
+// Libera recursos del motor
+void cerebelo_liberar(void);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RESULTADOS DEL BENCHMARK
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Total de operaciones atómicas ejecutadas
+uint64_t cerebelo_obtener_ops_totales(void);
+
+// Operaciones por segundo (throughput)
+double cerebelo_obtener_ops_por_segundo(void);
+
+// Latencia promedio en nanosegundos
+double cerebelo_obtener_latencia_ns(void);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ÍNDICE DE EFICIENCIA CREATIVA (IEC)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// IEC Global: 0-100 puntos (80M ops/seg = 100 puntos)
+double cerebelo_obtener_iec_global(void);
+
+// IEC Hemisferio Isósceles (acción): IEC_global * 1.15
+double cerebelo_obtener_iec_isosceles(void);
+
+// IEC Hemisferio Equilátero (equilibrio): IEC_global * 0.85
+double cerebelo_obtener_iec_equilatero(void);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EJEMPLO DE USO EN SWIFT
+// ═══════════════════════════════════════════════════════════════════════════
+/*
+ import Foundation
+ 
+ class CerebeloMotor {
+     init() {
+         let hilos = cerebelo_detectar_hilos()
+         cerebelo_inicializar(hilos, 5, 0)
+     }
+     
+     func ejecutarBenchmark() -> Double {
+         cerebelo_ejecutar_benchmark()
+         return cerebelo_obtener_iec_global()
+     }
+     
+     func obtenerResultados() -> (ops: UInt64, iec: Double) {
+         return (cerebelo_obtener_ops_totales(), cerebelo_obtener_iec_global())
+     }
+     
+     deinit {
+         cerebelo_liberar()
+     }
+ }
+*/
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // CEREBELO_H
