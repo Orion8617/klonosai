@@ -7,11 +7,15 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
-const SESSION_SECRET = process.env["SESSION_SECRET"] ?? "zerolag-dev-secret-change-in-production";
+const SESSION_SECRET = process.env["SESSION_SECRET"];
+if (process.env["NODE_ENV"] === "production" && !SESSION_SECRET) {
+  throw new Error("SESSION_SECRET environment variable must be set in production");
+}
+const secret = SESSION_SECRET ?? "zerolag-dev-only-change-before-prod";
 
 app.use(
   session({
-    secret: SESSION_SECRET,
+    secret,
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -42,9 +46,30 @@ app.use(
     },
   }),
 );
+// ── CORS — allowlist instead of wildcard-reflect ──────────────────────────────
+const PROD_ORIGINS = ["https://zerolag.klonos.app"];
+const DEV_ORIGIN_PATTERNS = [
+  /^https?:\/\/localhost(:\d+)?$/,
+  /\.replit\.dev$/,
+  /\.replit\.app$/,
+  /\.janeway\.replit\.dev$/,
+];
+const isAllowedOrigin = (origin: string | undefined): boolean => {
+  if (!origin) return false;
+  if (process.env["NODE_ENV"] === "production") {
+    return PROD_ORIGINS.includes(origin);
+  }
+  return DEV_ORIGIN_PATTERNS.some(r => r.test(origin));
+};
 app.use(cors({
-  origin: true,          // reflect requesting origin (works for Replit proxy)
-  credentials: true,     // allow cookies for session
+  origin: (origin, cb) => {
+    if (!origin || isAllowedOrigin(origin)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`CORS: origin '${origin}' not allowed`));
+    }
+  },
+  credentials: true,
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

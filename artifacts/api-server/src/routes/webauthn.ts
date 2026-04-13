@@ -68,6 +68,26 @@ router.post("/register-options", async (req: Request, res: Response) => {
   }
 
   const name = username.trim().toLowerCase();
+
+  // ── Ownership gate ────────────────────────────────────────────────────────
+  // If this username already has credentials, only allow adding more if the
+  // caller is already authenticated as that user. This prevents an attacker
+  // from binding their passkey to a victim's existing account.
+  if (usersByName.has(name)) {
+    const existingCredCount = (credsByUser.get(name) ?? []).length;
+    if (existingCredCount > 0) {
+      const sessionOk =
+        req.session?.logged_in === true && req.session?.username === name;
+      if (!sessionOk) {
+        res.status(409).json({
+          error:
+            "Username already registered. Sign in with your existing passkey to add another device.",
+        });
+        return;
+      }
+    }
+  }
+
   if (!usersByName.has(name)) {
     usersByName.set(name, { id: userIdFromName(name), username: name });
   }
