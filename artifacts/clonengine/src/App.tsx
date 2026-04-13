@@ -55,55 +55,41 @@ function lodR(imp: number): number {
   return 0.7;
 }
 
-// ─── ORBITAL SNN GLOBE — Real SatNOGS TLE + SNN satellite nodes ──────────────
-// Fetches live TLE data from db.satnogs.org, parses ECI orbital elements,
-// projects to screen with correct inclination + RAAN geometry.
-interface RealSat {
-  name: string;
-  inc: number;    // inclination radians
-  raan: number;   // RAAN radians
-  speed: number;  // rad/frame (scaled for visual)
-  rMult: number;  // orbit radius multiplier (altitude-derived)
-  l: boolean;     // orange (true) or cyan (false)
-  angle: number;  // current orbit angle
-  ni: number;     // SNN neuron index
-}
-
-function parseTle2(line2: string) {
-  const f = line2.trim().split(/\s+/);
-  const mm = parseFloat(f[7]);
-  const GM = 3.986004418e14;
-  const T  = 86400 / mm;
-  const a  = Math.cbrt(GM * T * T / (4 * Math.PI * Math.PI)) / 1000; // km
-  return {
-    inc:   parseFloat(f[2]) * Math.PI / 180,
-    raan:  parseFloat(f[3]) * Math.PI / 180,
-    ma:    parseFloat(f[6]) * Math.PI / 180,
-    mm,
-    altKm: a - 6371,
-  };
-}
-
-// Default fallback satellites (used while TLE is loading)
-const FALLBACK_SATS: RealSat[] = (() => {
-  const bands = [
-    { inc: 0.10, raan: 0.00, l: true  },
-    { inc: 0.62, raan: 1.57, l: false },
-    { inc: 1.08, raan: 3.14, l: true  },
-    { inc: 1.38, raan: 4.71, l: false },
-  ];
-  return bands.flatMap((b, bi) =>
-    Array.from({ length: 6 }, (_, j) => ({
-      name: `SAT-${bi * 6 + j + 1}`,
-      inc: b.inc, raan: b.raan,
-      speed: 0.007 - bi * 0.001,
-      rMult: 1.68 + bi * 0.30,
-      l: b.l,
-      angle: (j / 6) * Math.PI * 2,
-      ni: bi * 6 + j,
-    }))
-  );
-})();
+// ─── ORBITAL SNN GLOBE — Earth wireframe + 24 SNN satellite nodes ────────────
+// 4 orbital rings (equatorial → polar), 6 Izhikevich-driven nodes each.
+// inc: orbital inclination (rad), raan: right ascension of ascending node (rad),
+// speed: visual angular velocity (rad/frame), rMult: orbit radius × globe radius.
+interface Sat { inc: number; raan: number; speed: number; rMult: number; l: boolean; angle: number; ni: number }
+const SATS: Sat[] = [
+  // Ring 0 — low equatorial (inc ~10°), orange
+  { inc:0.17, raan:0.00, speed:0.0090, rMult:1.68, l:true,  angle:0.00, ni:0  },
+  { inc:0.17, raan:0.00, speed:0.0090, rMult:1.68, l:true,  angle:1.05, ni:1  },
+  { inc:0.17, raan:0.00, speed:0.0090, rMult:1.68, l:true,  angle:2.09, ni:2  },
+  { inc:0.17, raan:0.00, speed:0.0090, rMult:1.68, l:true,  angle:3.14, ni:3  },
+  { inc:0.17, raan:0.00, speed:0.0090, rMult:1.68, l:true,  angle:4.19, ni:4  },
+  { inc:0.17, raan:0.00, speed:0.0090, rMult:1.68, l:true,  angle:5.24, ni:5  },
+  // Ring 1 — mid inclination (inc ~36°), cyan
+  { inc:0.62, raan:1.57, speed:0.0070, rMult:1.98, l:false, angle:0.00, ni:6  },
+  { inc:0.62, raan:1.57, speed:0.0070, rMult:1.98, l:false, angle:1.05, ni:7  },
+  { inc:0.62, raan:1.57, speed:0.0070, rMult:1.98, l:false, angle:2.09, ni:8  },
+  { inc:0.62, raan:1.57, speed:0.0070, rMult:1.98, l:false, angle:3.14, ni:9  },
+  { inc:0.62, raan:1.57, speed:0.0070, rMult:1.98, l:false, angle:4.19, ni:10 },
+  { inc:0.62, raan:1.57, speed:0.0070, rMult:1.98, l:false, angle:5.24, ni:11 },
+  // Ring 2 — high inclination (inc ~62°), orange
+  { inc:1.08, raan:3.14, speed:0.0055, rMult:2.28, l:true,  angle:0.00, ni:12 },
+  { inc:1.08, raan:3.14, speed:0.0055, rMult:2.28, l:true,  angle:1.05, ni:13 },
+  { inc:1.08, raan:3.14, speed:0.0055, rMult:2.28, l:true,  angle:2.09, ni:14 },
+  { inc:1.08, raan:3.14, speed:0.0055, rMult:2.28, l:true,  angle:3.14, ni:15 },
+  { inc:1.08, raan:3.14, speed:0.0055, rMult:2.28, l:true,  angle:4.19, ni:16 },
+  { inc:1.08, raan:3.14, speed:0.0055, rMult:2.28, l:true,  angle:5.24, ni:17 },
+  // Ring 3 — near-polar (inc ~79°), cyan
+  { inc:1.38, raan:4.71, speed:0.0042, rMult:2.58, l:false, angle:0.00, ni:18 },
+  { inc:1.38, raan:4.71, speed:0.0042, rMult:2.58, l:false, angle:1.05, ni:19 },
+  { inc:1.38, raan:4.71, speed:0.0042, rMult:2.58, l:false, angle:2.09, ni:20 },
+  { inc:1.38, raan:4.71, speed:0.0042, rMult:2.58, l:false, angle:3.14, ni:21 },
+  { inc:1.38, raan:4.71, speed:0.0042, rMult:2.58, l:false, angle:4.19, ni:22 },
+  { inc:1.38, raan:4.71, speed:0.0042, rMult:2.58, l:false, angle:5.24, ni:23 },
+];
 
 function HeroCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -124,33 +110,27 @@ function HeroCanvas() {
       if (a !== b) sy.push({ a, b, w: (Math.random() - .5) * .4 });
     }
 
-    // ── 24 satellite nodes across 4 orbital rings ─────────────────────────
-    const sats: Sat[] = [];
-    for (let oi = 0; oi < GLOBE_ORBITS.length; oi++)
-      for (let j = 0; j < SATS_PER_RING; j++)
-        sats.push({ oi, angle: (j / SATS_PER_RING) * Math.PI * 2, ni: oi * SATS_PER_RING + j });
-
     // ── Theta scheduler state ─────────────────────────────────────────────
     const pw = new Float32Array(N);
     let thetaPhase = 0;
-    function thetaRecompute() { for (let i = 0; i < N; i++) pw[i] = pascalImp(snn[i].x || W * .5, snn[i].y || H * .5, W, H); }
+    function thetaRecompute() { for (let i = 0; i < N; i++) pw[i] = pascalImp(W * .5, H * .5, W, H); }
     thetaRecompute();
 
     // Globe & Schumann state
     let globeRot = 0, tk = 0, sc = 0;
 
-    // ── Project 3D orbital point → screen ────────────────────────────────
-    function orbitPt(oi: number, angle: number): { sx: number; sy: number; depth: number } {
-      const o = GLOBE_ORBITS[oi];
+    // ── ECI projection — full orbital mechanics (inc + RAAN) ─────────────
+    // Mirrors TRIDENT SATNOGS-TDOA layer geometry from tridentEngine.js
+    function eciPt(inc: number, raan: number, u: number, rMult: number): { sx: number; sy: number; depth: number } {
       const GR = Math.min(W, H) * 0.20;
-      const r = GR * o.rMult;
+      const r  = GR * rMult;
       const GX = W * 0.60, GY = H * 0.46;
-      const ox = r * Math.cos(angle);
-      const oy = r * Math.sin(angle) * Math.cos(o.inc);
-      const oz = r * Math.sin(angle) * Math.sin(o.inc);
-      const rx = ox * Math.cos(globeRot) - oz * Math.sin(globeRot);
-      const rz = ox * Math.sin(globeRot) + oz * Math.cos(globeRot);
-      return { sx: GX + rx, sy: GY - oy, depth: rz / r };
+      const ex = r * (Math.cos(u) * Math.cos(raan) - Math.sin(u) * Math.sin(raan) * Math.cos(inc));
+      const ey = r * (Math.cos(u) * Math.sin(raan) + Math.sin(u) * Math.cos(raan) * Math.cos(inc));
+      const ez = r * Math.sin(u) * Math.sin(inc);
+      const ex2 = ex * Math.cos(globeRot) + ey * Math.sin(globeRot);
+      const ey2 = -ex * Math.sin(globeRot) + ey * Math.cos(globeRot);
+      return { sx: GX + ex2, sy: GY - ez, depth: ey2 / r };
     }
 
     // ── Project 3D sphere point → screen ─────────────────────────────────
@@ -194,7 +174,7 @@ function HeroCanvas() {
       }
 
       // ── Advance satellite angles ───────────────────────────────────────────
-      for (let si = 0; si < sats.length; si++) sats[si].angle += GLOBE_ORBITS[sats[si].oi].speed;
+      for (let si = 0; si < SATS.length; si++) SATS[si].angle += SATS[si].speed;
 
       const GR = Math.min(W, H) * 0.20;
       const GX = W * 0.60, GY = H * 0.46;
@@ -202,93 +182,75 @@ function HeroCanvas() {
 
       // ── Draw globe wireframe — front/back depth split ──────────────────────
       cx.lineWidth = 0.5;
-      // Latitude rings (5 lines)
       for (const lat of [-1.05, -0.52, 0, 0.52, 1.05]) {
-        const front: number[] = [], back: number[] = [];
-        for (let j = 0; j <= STEPS; j++) {
-          const lon = (j / STEPS) * Math.PI * 2;
-          const p = spherePt(lat, lon);
-          const arr = p.depth >= 0 ? front : back;
-          if (arr.length === 0 || (p.depth >= 0) !== (back.length === 0 && front.length > 0)) arr.push(p.sx, p.sy);
-          else arr.push(p.sx, p.sy);
-        }
-        // Front half
-        cx.strokeStyle = "rgba(0,212,255,0.13)";
-        cx.beginPath();
+        cx.strokeStyle = "rgba(0,212,255,0.13)"; cx.beginPath();
         for (let j = 0; j <= STEPS; j++) {
           const p = spherePt(lat, (j / STEPS) * Math.PI * 2);
           if (p.depth >= 0) { if (j === 0 || spherePt(lat, ((j-1)/STEPS)*Math.PI*2).depth < 0) cx.moveTo(p.sx, p.sy); else cx.lineTo(p.sx, p.sy); }
         }
         cx.stroke();
-        // Back half (dimmer)
-        cx.strokeStyle = "rgba(0,212,255,0.035)";
-        cx.beginPath();
+        cx.strokeStyle = "rgba(0,212,255,0.035)"; cx.beginPath();
         for (let j = 0; j <= STEPS; j++) {
           const p = spherePt(lat, (j / STEPS) * Math.PI * 2);
           if (p.depth < 0) { if (j === 0 || spherePt(lat, ((j-1)/STEPS)*Math.PI*2).depth >= 0) cx.moveTo(p.sx, p.sy); else cx.lineTo(p.sx, p.sy); }
         }
         cx.stroke();
       }
-      // Longitude meridians (8 lines)
       for (let li = 0; li < 8; li++) {
         const lon0 = (li / 8) * Math.PI * 2;
-        cx.strokeStyle = "rgba(0,212,255,0.10)";
-        cx.beginPath();
+        cx.strokeStyle = "rgba(0,212,255,0.10)"; cx.beginPath();
         for (let j = 0; j <= STEPS; j++) {
           const lat = -Math.PI / 2 + (j / STEPS) * Math.PI;
           const p = spherePt(lat, lon0);
-          if (p.depth >= 0) { if (j === 0 || spherePt(-Math.PI/2 + ((j-1)/STEPS)*Math.PI, lon0).depth < 0) cx.moveTo(p.sx, p.sy); else cx.lineTo(p.sx, p.sy); }
+          if (p.depth >= 0) { if (j === 0 || spherePt(-Math.PI/2+((j-1)/STEPS)*Math.PI, lon0).depth < 0) cx.moveTo(p.sx, p.sy); else cx.lineTo(p.sx, p.sy); }
         }
         cx.stroke();
-        cx.strokeStyle = "rgba(0,212,255,0.030)";
-        cx.beginPath();
+        cx.strokeStyle = "rgba(0,212,255,0.030)"; cx.beginPath();
         for (let j = 0; j <= STEPS; j++) {
           const lat = -Math.PI / 2 + (j / STEPS) * Math.PI;
           const p = spherePt(lat, lon0);
-          if (p.depth < 0) { if (j === 0 || spherePt(-Math.PI/2 + ((j-1)/STEPS)*Math.PI, lon0).depth >= 0) cx.moveTo(p.sx, p.sy); else cx.lineTo(p.sx, p.sy); }
+          if (p.depth < 0) { if (j === 0 || spherePt(-Math.PI/2+((j-1)/STEPS)*Math.PI, lon0).depth >= 0) cx.moveTo(p.sx, p.sy); else cx.lineTo(p.sx, p.sy); }
         }
         cx.stroke();
       }
 
-      // ── Draw orbital rings (Stage 3: Vigesimal opacity) ────────────────────
-      for (let oi = 0; oi < GLOBE_ORBITS.length; oi++) {
-        const o = GLOBE_ORBITS[oi];
-        const col = o.l ? "255,122,26" : "0,212,255";
-        cx.strokeStyle = `rgba(${col},0.055)`; cx.lineWidth = 0.4;
-        cx.beginPath();
+      // ── Draw each satellite's real orbital ring (ECI-projected) ────────────
+      cx.lineWidth = 0.4;
+      for (let si = 0; si < SATS.length; si++) {
+        const s = SATS[si];
+        const col = s.l ? "255,122,26" : "0,212,255";
+        cx.strokeStyle = `rgba(${col},0.05)`; cx.beginPath();
         for (let j = 0; j <= STEPS; j++) {
-          const p = orbitPt(oi, (j / STEPS) * Math.PI * 2);
+          const p = eciPt(s.inc, s.raan, (j / STEPS) * Math.PI * 2, s.rMult);
           if (j === 0) cx.moveTo(p.sx, p.sy); else cx.lineTo(p.sx, p.sy);
         }
         cx.stroke();
       }
 
-      // ── Build SpikeForge edge batches for satellite connections ────────────
+      // ── SpikeForge edge batches for satellite connections ──────────────────
       oBkt.clear(); cBkt.clear();
-      for (let si = 0; si < sats.length; si++) {
-        const ni = sats[si].ni;
+      for (let si = 0; si < SATS.length; si++) {
+        const s = SATS[si], ni = s.ni;
         if (!snn[ni].f) continue;
-        const pa = orbitPt(sats[si].oi, sats[si].angle);
-        const col = GLOBE_ORBITS[sats[si].oi].l;
+        const pa = eciPt(s.inc, s.raan, s.angle, s.rMult);
 
-        // Line to globe surface — find surface intercept
+        // Line to globe surface (TRIDENT ground-link visual)
         const dx = GX - pa.sx, dy = GY - pa.sy, d = Math.hypot(dx, dy);
         const gsx = pa.sx + dx * (1 - GR / d), gsy = pa.sy + dy * (1 - GR / d);
-        let alpha = Math.round((.08 + snn[ni].f / 12 * .14) * 20) / 20; // Vigesimal
-        const bkt1 = col ? oBkt : cBkt;
+        let alpha = Math.round((.08 + snn[ni].f / 12 * .14) * 20) / 20;
+        const bkt1 = s.l ? oBkt : cBkt;
         let arr1 = bkt1.get(alpha); if (!arr1) { arr1 = []; bkt1.set(alpha, arr1); }
         arr1.push(pa.sx, pa.sy, gsx, gsy);
 
-        // Lines to other firing satellites
-        for (let sj = si + 1; sj < sats.length; sj++) {
-          if (!snn[sats[sj].ni].f) continue;
-          const pb = orbitPt(sats[sj].oi, sats[sj].angle);
+        // Lines to other firing satellites (bilateral coupling for cross-hemisphere)
+        for (let sj = si + 1; sj < SATS.length; sj++) {
+          const s2 = SATS[sj]; if (!snn[s2.ni].f) continue;
+          const pb = eciPt(s2.inc, s2.raan, s2.angle, s2.rMult);
           if (Math.hypot(pb.sx - pa.sx, pb.sy - pa.sy) > GR * 3.8) continue;
-          const isBilateral = GLOBE_ORBITS[sats[si].oi].l !== GLOBE_ORBITS[sats[sj].oi].l;
           let ea = Math.round((.07 + snn[ni].f / 12 * .11) * 20) / 20;
-          if (isBilateral) ea = Math.round(ea * BILATERAL_K * 20) / 20;
+          if (s.l !== s2.l) ea = Math.round(ea * BILATERAL_K * 20) / 20;
           if (ea < 0.04) continue;
-          const bkt2 = col ? oBkt : cBkt;
+          const bkt2 = s.l ? oBkt : cBkt;
           let arr2 = bkt2.get(ea); if (!arr2) { arr2 = []; bkt2.set(ea, arr2); }
           arr2.push(pa.sx, pa.sy, pb.sx, pb.sy);
         }
@@ -297,23 +259,26 @@ function HeroCanvas() {
       oBkt.forEach((segs, a) => { cx.strokeStyle = `rgba(255,122,26,${a})`; cx.beginPath(); for (let i = 0; i < segs.length; i += 4) { cx.moveTo(segs[i], segs[i+1]); cx.lineTo(segs[i+2], segs[i+3]); } cx.stroke(); });
       cBkt.forEach((segs, a) => { cx.strokeStyle = `rgba(0,212,255,${a})`; cx.beginPath(); for (let i = 0; i < segs.length; i += 4) { cx.moveTo(segs[i], segs[i+1]); cx.lineTo(segs[i+2], segs[i+3]); } cx.stroke(); });
 
-      // ── Draw satellite nodes (Stage 1 LOD by orbit depth) ──────────────────
+      // ── Draw satellite nodes + name labels ─────────────────────────────────
       cx.shadowBlur = 0;
-      for (let si = 0; si < sats.length; si++) {
-        const ni = sats[si].ni;
-        const p = orbitPt(sats[si].oi, sats[si].angle);
-        const col = GLOBE_ORBITS[sats[si].oi].l;
-        const hexCol = col ? "#ff7a1a" : "#00d4ff";
-        const rgbCol = col ? "255,122,26" : "0,212,255";
+      cx.font = "9px 'Space Mono', monospace";
+      cx.textAlign = "left";
+      for (let si = 0; si < SATS.length; si++) {
+        const s = SATS[si], ni = s.ni;
+        const p = eciPt(s.inc, s.raan, s.angle, s.rMult);
+        const hexCol = s.l ? "#ff7a1a" : "#00d4ff";
+        const rgbCol = s.l ? "255,122,26" : "0,212,255";
         if (snn[ni].f > 0) {
           cx.shadowColor = hexCol; cx.shadowBlur = 10;
           cx.fillStyle = hexCol;
           cx.beginPath(); cx.arc(p.sx, p.sy, 2.8, 0, Math.PI * 2); cx.fill();
           cx.shadowBlur = 0;
+          // Name label (only when firing — TRIDENT satellite ID display)
+          cx.fillStyle = `rgba(${rgbCol},0.75)`;
+          cx.fillText(s.name, p.sx + 5, p.sy - 4);
         } else {
-          // LOD: depth affects visibility (front of orbit = slightly bigger)
-          const depthR = 1.4 + p.depth * 0.6; // 0.8..2.0
-          const op = .12 + Math.max(0, (snn[ni].v + 65) / 75) * .22;
+          const depthR = Math.max(0.8, 1.4 + p.depth * 0.6);
+          const op = .10 + Math.max(0, (snn[ni].v + 65) / 75) * .20;
           cx.fillStyle = `rgba(${rgbCol},${op.toFixed(2)})`;
           cx.beginPath(); cx.arc(p.sx, p.sy, depthR, 0, Math.PI * 2); cx.fill();
         }
