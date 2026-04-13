@@ -16,7 +16,7 @@
 //    ✅ Modelo de monetización integrado en UI
 // ═══════════════════════════════════════════════════════════════
 
-package com.klonos.lagkiller
+package com.klonos.zerolag
 
 import android.Manifest
 import android.app.Activity

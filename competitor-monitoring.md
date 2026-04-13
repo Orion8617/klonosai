@@ -47,7 +47,7 @@ extension — all sharing the same SNN constants (VIGESIMAL_WEIGHT=50, SCHUMANN_
 - **KlonOS reduce latencia de red** — reduce ping en multiplayer competitivo (Free Fire, PUBG, Valorant)
 - Son problemas completamente distintos — no compiten técnicamente
 - Riesgo principal: **SEO/naming confusion** — un gamer que busca "LagKiller" puede llegar allá primero
-- Acción: Usar siempre "**KlonOS LagKiller**" o "**KlonOS — Neuromorphic Lag Killer**" para diferenciarse en búsquedas
+- Acción: Usar siempre "**KlonOS ZeroLag**" para diferenciarse en búsquedas — nombre cambiado de LagKiller a ZeroLag (abr 2026)
 
 ### Tier 2 — VPN / Mobile Privacy (direct usage overlap)
 
@@ -138,7 +138,7 @@ https://www.google.com/alerts?q=%22C.+elegans%22+connectome+AI+edge&hl=en&source
 |---|---|---|
 | 0–5 | Google Alert digest | New funding, product launches, press |
 | 5–10 | BrainChip + Innatera changelogs | SDK updates that overlap with ClonEngine |
-| 10–15 | WireGuard + Mullvad GitHub | TUN interface changes relevant to LagKillerVpnService |
+| 10–15 | WireGuard + Mullvad GitHub | TUN interface changes relevant to ZeroLagVpnService |
 | 15–20 | SNNtorch / Lava GitHub | New training APIs, Izhikevich support |
 | 20–25 | LinkedIn jobs: "neuromorphic" + "spiking" | Companies hiring = budget for tools |
 | 25–30 | Update this file | Log date + changes + action |

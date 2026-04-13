@@ -505,7 +505,7 @@ export default function App() {
           <Rv cls="sh">
             <div className="sb">Compatible Games</div>
             <h2 className="stitle display">Zero lag.<br /><em>Every game.</em></h2>
-            <p className="ssub">KlonOS intercepts every game packet at the TUN layer before it reaches your ISP and routes it through the fastest Pascal Ring path. The SNN engine learns each game's traffic signature in real time — no config needed.</p>
+            <p className="ssub">ZeroLag intercepts every game packet at the TUN layer before it reaches your ISP and routes it through the fastest Pascal Ring path. The SNN engine learns each game's traffic signature in real time — no config needed.</p>
           </Rv>
 
           <div className="games-strip">
@@ -537,7 +537,7 @@ export default function App() {
           <Rv cls="d2 games-cta">
             <p className="gcta-note">Works out of the box on Android APK · Chrome Extension · iOS PWA · No configuration required</p>
             <div className="gcta-btns">
-              <a href="#pricing" className="btn-m">Download KlonOS free →</a>
+              <a href="#pricing" className="btn-m">Download ZeroLag free →</a>
               <a href="#products" className="btn-g">View all products ↓</a>
             </div>
           </Rv>
@@ -628,7 +628,7 @@ export default function App() {
                 <li><span className="ok">✓</span><span>C.elegans <span className="fem">302 neurons</span></span></li>
                 <li><span className="ok">✓</span><span>STBP + R-STDP training</span></li>
                 <li><span className="ok">✓</span><span>Pascal Ring 0–4 classification</span></li>
-                <li><span className="ok">✓</span><span>KlonOS VPN basic mode</span></li>
+                <li><span className="ok">✓</span><span>ZeroLag VPN basic mode</span></li>
                 <li><span className="ok">✓</span><span>SpikeForge npm (≤1K neurons)</span></li>
                 <li><span className="no">—</span><span style={{ opacity: .35 }}>Schumann 7.83Hz scheduler</span></li>
                 <li><span className="no">—</span><span style={{ opacity: .35 }}>Drosophila 139K neurons</span></li>

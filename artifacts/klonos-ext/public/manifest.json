@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "KlonOS Layer 5.0",
+  "name": "KlonOS ZeroLag",
   "version": "1.0.0",
-  "description": "Sovereign SNN Housekeeper — Patrulla DOM hexagonal. Juan José Salgado Fuentes.",
+  "description": "Neuromorphic gaming VPN — ZeroLag SNN engine. Reduce ping. No GPU. No cloud.",
   "icons": {
     "16": "icon16.png",
     "48": "icon48.png",
@@ -15,7 +15,7 @@
       "48": "icon48.png",
       "128": "icon128.png"
     },
-    "default_title": "KlonOS Layer 5.0 — SNN Housekeeper"
+    "default_title": "KlonOS ZeroLag — Neuromorphic Gaming VPN"
   },
   "content_scripts": [
     {

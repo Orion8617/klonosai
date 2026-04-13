@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace   = "com.klonos.lagkiller"
+    namespace   = "com.klonos.zerolag"
     compileSdk  = 34
 
     defaultConfig {
-        applicationId = "com.klonos.lagkiller"
+        applicationId = "com.klonos.zerolag"
         minSdk        = 26
         targetSdk     = 34
         versionCode   = 5
@@ -54,7 +54,7 @@ android {
 // Rust core: compilar antes de assembleDebug/Release
 tasks.register<Exec>("buildRustCore") {
     group       = "build"
-    description = "Compila lagkiller_engine.so con cargo-ndk"
+    description = "Compila zerolag_engine.so con cargo-ndk"
     workingDir  = file("../rust_core")
     commandLine(
         "cargo", "ndk",
