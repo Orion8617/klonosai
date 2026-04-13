@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ZeroLag</string>
+    <string name="title_activity_main">ZeroLag</string>
+    <string name="package_name">com.klonos.zerolag</string>
+    <string name="custom_url_scheme">zerolag</string>
+</resources>

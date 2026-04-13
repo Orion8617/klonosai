@@ -1,0 +1,13 @@
+// settings.gradle — Capacitor ZeroLag
+
+include ':app'
+
+// ─── Capacitor core ────────────────────────────────────────────────────────
+include ':capacitor-android'
+project(':capacitor-android').projectDir = new File('../node_modules/@capacitor/android/capacitor')
+
+// ─── KlonOS Callosum plugin ────────────────────────────────────────────────
+include ':klonos-callosum-cap'
+project(':klonos-callosum-cap').projectDir = new File(
+    '../../klonos/modules/klonos-callosum-cap/android'
+)
