@@ -18,9 +18,10 @@ import { BenchBar, Counter, Rv } from "./ui/atoms";
 import { GAMES_DATA }     from "./data/games";
 import { PingMeter }         from "./sections/PingMeter";
 import { EngineProfiler }    from "./sections/EngineProfiler";
-import { DownloadModal }     from "./components/DownloadModal";
-import { PrivacyModal }      from "./components/PrivacyModal";
-import { CryptoPayModal }    from "./components/CryptoPayModal";
+import { DownloadModal }        from "./components/DownloadModal";
+import { PrivacyModal }         from "./components/PrivacyModal";
+import { CryptoPayModal }       from "./components/CryptoPayModal";
+import { BiometricLoginModal }  from "./components/BiometricLoginModal";
 
 export default function App() {
   const [scrolled, setScrolled] = useState(false);
@@ -29,10 +30,13 @@ export default function App() {
   const [privOpen,  setPrivOpen]  = useState(false);
   const [cryptoOpen, setCryptoOpen] = useState(false);
   const [cryptoPlan, setCryptoPlan] = useState("Pro");
+  const [bamOpen,    setBamOpen]   = useState(false);
+  const [bamUser,    setBamUser]   = useState("");
 
   const openDL   = (e: React.MouseEvent) => { e.preventDefault(); setDlOpen(true); };
   const openPriv = (e: React.MouseEvent) => { e.preventDefault(); setPrivOpen(true); };
   const openCrypto = (plan: string) => (e: React.MouseEvent) => { e.preventDefault(); setCryptoPlan(plan); setCryptoOpen(true); };
+  const handleLogin = (username: string) => { setBamUser(username); if (username) setBamOpen(false); };
 
   useEffect(() => {
     // Custom cursor — orange crosshair
@@ -54,9 +58,10 @@ export default function App() {
 
   return (
     <>
-      <DownloadModal  open={dlOpen}     onClose={() => setDlOpen(false)} />
-      <PrivacyModal   open={privOpen}   onClose={() => setPrivOpen(false)} />
-      <CryptoPayModal open={cryptoOpen} plan={cryptoPlan} onClose={() => setCryptoOpen(false)} />
+      <DownloadModal       open={dlOpen}     onClose={() => setDlOpen(false)} />
+      <PrivacyModal        open={privOpen}   onClose={() => setPrivOpen(false)} />
+      <CryptoPayModal      open={cryptoOpen} plan={cryptoPlan} onClose={() => setCryptoOpen(false)} />
+      <BiometricLoginModal open={bamOpen}    onClose={() => setBamOpen(false)} onLogin={handleLogin} />
 
       {/* ── NAV ──────────────────────────────────────────────────────────── */}
       <nav id="nav" className={scrolled ? "scrolled" : ""}>
@@ -72,6 +77,15 @@ export default function App() {
             <li><a href="#products">Products</a></li>
             <li><a href="#benchmarks">Benchmarks</a></li>
             <li><a href="#pricing">Pricing</a></li>
+            <li>
+              <button
+                className={`nav-login${bamUser ? " active" : ""}`}
+                onClick={() => setBamOpen(true)}
+                title={bamUser ? `Logged in as ${bamUser}` : "Login with passkey / fingerprint"}
+              >
+                {bamUser ? `☝ ${bamUser}` : "☝ Login"}
+              </button>
+            </li>
             <li><a href="#pricing" className="nav-cta">Kill my lag →</a></li>
           </ul>
         </div>
