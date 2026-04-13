@@ -1,0 +1,31 @@
+name: Deploy Infrastructure → Azure (Bicep)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'azure/**'
+
+jobs:
+  deploy-infra:
+    runs-on: ubuntu-latest
+    name: Provision Azure Resources
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Bicep (subscription scope)
+        uses: azure/arm-deploy@v2
+        with:
+          scope:          subscription
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          region:         eastus
+          template:       azure/main.bicep
+          parameters:     location=eastus env=prod
+          failOnStdErr:   false

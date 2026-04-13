@@ -1,0 +1,51 @@
+name: Deploy Frontend → Azure Static Web Apps
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'artifacts/clonengine/**'
+      - 'lib/**'
+      - 'pnpm-workspace.yaml'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    name: Build & Deploy ClonEngine
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build api-client-react
+        run: pnpm --filter @workspace/api-client-react run build 2>/dev/null || true
+
+      - name: Build ClonEngine
+        run: pnpm --filter @workspace/clonengine run build
+        env:
+          BASE_PATH: /
+          PORT: 3000
+          NODE_ENV: production
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_SWA_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: artifacts/clonengine/dist/public
+          skip_app_build: true
