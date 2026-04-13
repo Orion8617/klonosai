@@ -1,691 +1,39 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-
-// ─── CONSTANTS (outside component — never re-created on render) ───────────────
-const TICKER_ITEMS: [string, string][] = [
-  ["Free Fire", "-61ms latency saved"], ["Valorant", "-38ms latency saved"],
-  ["Fortnite", "-47ms latency saved"], ["PUBG Mobile", "-55ms latency saved"],
-  ["Apex Legends", "-42ms latency saved"], ["Mobile Legends", "-53ms latency saved"],
-  ["CS2", "-29ms latency saved"], ["Call of Duty", "-36ms latency saved"],
-  ["Android APK", "Real TUN VPN interface"], ["Chrome Extension", "DOM + network routing"],
-  ["SNN AI", "302-neuron routing engine"], ["$0 forever", "Free plan · no credit card"],
-];
-
-// ─── IZHIKEVICH SNN ENGINE ────────────────────────────────────────────────────
-interface N { x: number; y: number; vx?: number; vy?: number; v: number; u: number; f: number; l: boolean }
-function izhi(n: N, I: number): boolean {
-  const th = n.l ? 25.5 : 34.5;
-  n.v += .5 * (.04 * n.v * n.v + 5 * n.v + 140 - n.u + I);
-  n.u += .5 * .02 * (.2 * n.v - n.u);
-  n.v += .5 * (.04 * n.v * n.v + 5 * n.v + 140 - n.u + I);
-  n.u += .5 * .02 * (.2 * n.v - n.u);
-  if (n.v >= th) { n.v = -65; n.u += 8; n.f = 12; return true; }
-  if (n.f > 0) n.f--;
-  return false;
-}
-
-// ─── SPIKEFORGE vGPU PIPELINE — Full spec implementation (Whitepaper v3.0) ────
+// ─── Layer 8: App — Layout composer (imports from all layers) ────────────────
 //
-//  Stage 1 · Pascal Frustum Culling     X/Y Triangle Row-4 spatial importance
-//  Stage 2 · Synaptic LOD               4-tier node sizing by Pascal importance
-//  Stage 3 · Vigesimal Base-20          alpha quantised to 1/20 steps (already correct)
-//  Stage 4 · Gamma/Theta Scheduler      Gamma=60Hz render, Theta=6Hz heavy-ops cadence
-//  §10     · Bilateral Coupling 0.30    Cross-hemisphere gap-junction alpha modifier
-//
-// Pascal Triangle Row 4: [1, 4, 6, 4, 1] / 16
-const P4 = [1/16, 4/16, 6/16, 4/16, 1/16] as const;
-const PASCAL_CULL     = 0.06;   // Stage 1: discard neurons with importance < 6%
-const BILATERAL_K     = 0.30;   // §10: gap-junction coupling factor
-const THETA_PERIOD    = 10;     // Stage 4: Theta tick every 10 Gamma frames ≈ 6Hz
+//  Layer 0  tokens.ts              ← TICKER_ITEMS
+//  Layer 1  engine/snn.ts          ← Izhikevich + SpikeForge pipeline
+//  Layer 2  engine/orbital.ts      ← SATS (24 orbital nodes)
+//  Layer 3  canvas/HeroCanvas.tsx  ← wireframe globe animation
+//  Layer 4  canvas/SciCanvas.tsx   ← SNN hexagonal canvas
+//  Layer 5  ui/atoms.tsx           ← BenchBar · Counter · Rv
+//  Layer 6  data/games.tsx         ← GAMES_DATA
+//  Layer 7  sections/PingMeter.tsx ← latency HUD
+//  Layer 8  App.tsx                ← this file: Nav + sections + footer
 
-// Stage 1: Pascal 3D Frustum Culling — X (hemispheric) × Y (cortical depth)
-// Returns importance weight 0..1 using Pascal row-4 coefficients on both axes
-function pascalImp(x: number, y: number, W: number, H: number): number {
-  const bx = Math.min(4, Math.floor(x / W * 5));
-  const by = Math.min(4, Math.floor(y / H * 5));
-  // Scale back so center node (bx=2,by=2) → 1.0; corners → 0.067²≈0.004
-  return (P4[bx] * 16) * (P4[by] * 16) / 16;
-}
+import { useEffect, useState } from "react";
+import { TICKER_ITEMS }   from "./tokens";
+import { HeroCanvas }     from "./canvas/HeroCanvas";
+import { SciCanvas }      from "./canvas/SciCanvas";
+import { BenchBar, Counter, Rv } from "./ui/atoms";
+import { GAMES_DATA }     from "./data/games";
+import { PingMeter }      from "./sections/PingMeter";
 
-// Stage 2: Synaptic LOD — 4-tier node radius by Pascal importance
-// Full(≥0.5)→2.0  Medium(≥0.2)→1.5  Quarter(≥0.08)→1.1  Eighth(<0.08)→0.7
-function lodR(imp: number): number {
-  if (imp >= 0.5)  return 2.0;
-  if (imp >= 0.2)  return 1.5;
-  if (imp >= 0.08) return 1.1;
-  return 0.7;
-}
-
-// ─── ORBITAL SNN GLOBE — Earth wireframe + 24 SNN satellite nodes ────────────
-// 4 orbital rings (equatorial → polar), 6 Izhikevich-driven nodes each.
-// inc: orbital inclination (rad), raan: right ascension of ascending node (rad),
-// speed: visual angular velocity (rad/frame), rMult: orbit radius × globe radius.
-interface Sat { inc: number; raan: number; speed: number; rMult: number; l: boolean; angle: number; ni: number }
-const SATS: Sat[] = [
-  // Ring 0 — low equatorial (inc ~10°), orange
-  { inc:0.17, raan:0.00, speed:0.0090, rMult:1.68, l:true,  angle:0.00, ni:0  },
-  { inc:0.17, raan:0.00, speed:0.0090, rMult:1.68, l:true,  angle:1.05, ni:1  },
-  { inc:0.17, raan:0.00, speed:0.0090, rMult:1.68, l:true,  angle:2.09, ni:2  },
-  { inc:0.17, raan:0.00, speed:0.0090, rMult:1.68, l:true,  angle:3.14, ni:3  },
-  { inc:0.17, raan:0.00, speed:0.0090, rMult:1.68, l:true,  angle:4.19, ni:4  },
-  { inc:0.17, raan:0.00, speed:0.0090, rMult:1.68, l:true,  angle:5.24, ni:5  },
-  // Ring 1 — mid inclination (inc ~36°), cyan
-  { inc:0.62, raan:1.57, speed:0.0070, rMult:1.98, l:false, angle:0.00, ni:6  },
-  { inc:0.62, raan:1.57, speed:0.0070, rMult:1.98, l:false, angle:1.05, ni:7  },
-  { inc:0.62, raan:1.57, speed:0.0070, rMult:1.98, l:false, angle:2.09, ni:8  },
-  { inc:0.62, raan:1.57, speed:0.0070, rMult:1.98, l:false, angle:3.14, ni:9  },
-  { inc:0.62, raan:1.57, speed:0.0070, rMult:1.98, l:false, angle:4.19, ni:10 },
-  { inc:0.62, raan:1.57, speed:0.0070, rMult:1.98, l:false, angle:5.24, ni:11 },
-  // Ring 2 — high inclination (inc ~62°), orange
-  { inc:1.08, raan:3.14, speed:0.0055, rMult:2.28, l:true,  angle:0.00, ni:12 },
-  { inc:1.08, raan:3.14, speed:0.0055, rMult:2.28, l:true,  angle:1.05, ni:13 },
-  { inc:1.08, raan:3.14, speed:0.0055, rMult:2.28, l:true,  angle:2.09, ni:14 },
-  { inc:1.08, raan:3.14, speed:0.0055, rMult:2.28, l:true,  angle:3.14, ni:15 },
-  { inc:1.08, raan:3.14, speed:0.0055, rMult:2.28, l:true,  angle:4.19, ni:16 },
-  { inc:1.08, raan:3.14, speed:0.0055, rMult:2.28, l:true,  angle:5.24, ni:17 },
-  // Ring 3 — near-polar (inc ~79°), cyan
-  { inc:1.38, raan:4.71, speed:0.0042, rMult:2.58, l:false, angle:0.00, ni:18 },
-  { inc:1.38, raan:4.71, speed:0.0042, rMult:2.58, l:false, angle:1.05, ni:19 },
-  { inc:1.38, raan:4.71, speed:0.0042, rMult:2.58, l:false, angle:2.09, ni:20 },
-  { inc:1.38, raan:4.71, speed:0.0042, rMult:2.58, l:false, angle:3.14, ni:21 },
-  { inc:1.38, raan:4.71, speed:0.0042, rMult:2.58, l:false, angle:4.19, ni:22 },
-  { inc:1.38, raan:4.71, speed:0.0042, rMult:2.58, l:false, angle:5.24, ni:23 },
-];
-
-function HeroCanvas() {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const cv = ref.current; if (!cv) return;
-    const cx = cv.getContext("2d")!;
-    let W = 0, H = 0, raf = 0;
-    function rs() { if (!cv) return; W = cv.width = cv.offsetWidth; H = cv.height = cv.offsetHeight; }
-    rs(); window.addEventListener("resize", rs);
-
-    // ── 302-neuron SNN engine ─────────────────────────────────────────────
-    const N = 302;
-    const snn: N[] = [];
-    for (let i = 0; i < N; i++) snn.push({ x: 0, y: 0, v: -65 + Math.random() * 10, u: -13, f: 0, l: Math.random() > .5 });
-    const sy: { a: number; b: number; w: number }[] = [];
-    for (let i = 0; i < 700; i++) {
-      const a = Math.floor(Math.random() * N), b = Math.floor(Math.random() * N);
-      if (a !== b) sy.push({ a, b, w: (Math.random() - .5) * .4 });
-    }
-
-    // ── Theta scheduler state ─────────────────────────────────────────────
-    const pw = new Float32Array(N);
-    let thetaPhase = 0;
-    function thetaRecompute() { for (let i = 0; i < N; i++) pw[i] = pascalImp(W * .5, H * .5, W, H); }
-    thetaRecompute();
-
-    // Globe & Schumann state
-    let globeRot = 0, tk = 0, sc = 0;
-
-    // ── ECI projection — full orbital mechanics (inc + RAAN) ─────────────
-    // Mirrors TRIDENT SATNOGS-TDOA layer geometry from tridentEngine.js
-    function eciPt(inc: number, raan: number, u: number, rMult: number): { sx: number; sy: number; depth: number } {
-      const GR = Math.min(W, H) * 0.20;
-      const r  = GR * rMult;
-      const GX = W * 0.60, GY = H * 0.46;
-      const ex = r * (Math.cos(u) * Math.cos(raan) - Math.sin(u) * Math.sin(raan) * Math.cos(inc));
-      const ey = r * (Math.cos(u) * Math.sin(raan) + Math.sin(u) * Math.cos(raan) * Math.cos(inc));
-      const ez = r * Math.sin(u) * Math.sin(inc);
-      const ex2 = ex * Math.cos(globeRot) + ey * Math.sin(globeRot);
-      const ey2 = -ex * Math.sin(globeRot) + ey * Math.cos(globeRot);
-      return { sx: GX + ex2, sy: GY - ez, depth: ey2 / r };
-    }
-
-    // ── Project 3D sphere point → screen ─────────────────────────────────
-    function spherePt(lat: number, lon: number): { sx: number; sy: number; depth: number } {
-      const GR = Math.min(W, H) * 0.20;
-      const GX = W * 0.60, GY = H * 0.46;
-      const x3 = GR * Math.cos(lat) * Math.cos(lon + globeRot);
-      const y3 = GR * Math.sin(lat);
-      const z3 = GR * Math.cos(lat) * Math.sin(lon + globeRot);
-      return { sx: GX + x3, sy: GY - y3, depth: z3 / GR };
-    }
-
-    // Reusable edge buckets (SpikeForge batch renderer)
-    const oBkt = new Map<number, number[]>();
-    const cBkt = new Map<number, number[]>();
-
-    function draw(ts: number) {
-      raf = requestAnimationFrame(draw);
-      if (document.hidden) return;
-
-      cx.fillStyle = "rgba(2,12,24,.13)"; cx.fillRect(0, 0, W, H);
-      tk++;
-
-      // Stage 4: Schumann (7.83Hz) + Theta scheduler (6Hz)
-      sc += 7.83 / 60;
-      const sf = sc >= 1; if (sf) sc -= 1;
-      thetaPhase++;
-      if (thetaPhase >= THETA_PERIOD) { thetaPhase = 0; thetaRecompute(); }
-
-      // Globe rotation (slow, continuous)
-      globeRot += 0.0028;
-
-      // ── SNN step ──────────────────────────────────────────────────────────
-      const inp = new Float32Array(N);
-      for (let i = 0; i < sy.length; i++) { const s = sy[i]; if (snn[s.a].f > 0) inp[s.b] += s.w * 9; }
-      for (let i = 0; i < N; i++) {
-        const n = snn[i];
-        const I = inp[i] + (Math.random() - .3) * 4 + (i % 53 === tk % 53 ? 4 : 0);
-        if (n.f === 0 && n.v < -62 && Math.abs(I) < 1.5) { n.v += .04 * n.v * n.v * .002 + I * .04; }
-        else { izhi(n, I); }
-      }
-
-      // ── Advance satellite angles ───────────────────────────────────────────
-      for (let si = 0; si < SATS.length; si++) SATS[si].angle += SATS[si].speed;
-
-      const GR = Math.min(W, H) * 0.20;
-      const GX = W * 0.60, GY = H * 0.46;
-      const STEPS = 64;
-
-      // ── Draw globe wireframe — front/back depth split ──────────────────────
-      cx.lineWidth = 0.5;
-      for (const lat of [-1.05, -0.52, 0, 0.52, 1.05]) {
-        cx.strokeStyle = "rgba(0,212,255,0.13)"; cx.beginPath();
-        for (let j = 0; j <= STEPS; j++) {
-          const p = spherePt(lat, (j / STEPS) * Math.PI * 2);
-          if (p.depth >= 0) { if (j === 0 || spherePt(lat, ((j-1)/STEPS)*Math.PI*2).depth < 0) cx.moveTo(p.sx, p.sy); else cx.lineTo(p.sx, p.sy); }
-        }
-        cx.stroke();
-        cx.strokeStyle = "rgba(0,212,255,0.035)"; cx.beginPath();
-        for (let j = 0; j <= STEPS; j++) {
-          const p = spherePt(lat, (j / STEPS) * Math.PI * 2);
-          if (p.depth < 0) { if (j === 0 || spherePt(lat, ((j-1)/STEPS)*Math.PI*2).depth >= 0) cx.moveTo(p.sx, p.sy); else cx.lineTo(p.sx, p.sy); }
-        }
-        cx.stroke();
-      }
-      for (let li = 0; li < 8; li++) {
-        const lon0 = (li / 8) * Math.PI * 2;
-        cx.strokeStyle = "rgba(0,212,255,0.10)"; cx.beginPath();
-        for (let j = 0; j <= STEPS; j++) {
-          const lat = -Math.PI / 2 + (j / STEPS) * Math.PI;
-          const p = spherePt(lat, lon0);
-          if (p.depth >= 0) { if (j === 0 || spherePt(-Math.PI/2+((j-1)/STEPS)*Math.PI, lon0).depth < 0) cx.moveTo(p.sx, p.sy); else cx.lineTo(p.sx, p.sy); }
-        }
-        cx.stroke();
-        cx.strokeStyle = "rgba(0,212,255,0.030)"; cx.beginPath();
-        for (let j = 0; j <= STEPS; j++) {
-          const lat = -Math.PI / 2 + (j / STEPS) * Math.PI;
-          const p = spherePt(lat, lon0);
-          if (p.depth < 0) { if (j === 0 || spherePt(-Math.PI/2+((j-1)/STEPS)*Math.PI, lon0).depth >= 0) cx.moveTo(p.sx, p.sy); else cx.lineTo(p.sx, p.sy); }
-        }
-        cx.stroke();
-      }
-
-      // ── Draw each satellite's real orbital ring (ECI-projected) ────────────
-      cx.lineWidth = 0.4;
-      for (let si = 0; si < SATS.length; si++) {
-        const s = SATS[si];
-        const col = s.l ? "255,122,26" : "0,212,255";
-        cx.strokeStyle = `rgba(${col},0.05)`; cx.beginPath();
-        for (let j = 0; j <= STEPS; j++) {
-          const p = eciPt(s.inc, s.raan, (j / STEPS) * Math.PI * 2, s.rMult);
-          if (j === 0) cx.moveTo(p.sx, p.sy); else cx.lineTo(p.sx, p.sy);
-        }
-        cx.stroke();
-      }
-
-      // ── SpikeForge edge batches for satellite connections ──────────────────
-      oBkt.clear(); cBkt.clear();
-      for (let si = 0; si < SATS.length; si++) {
-        const s = SATS[si], ni = s.ni;
-        if (!snn[ni].f) continue;
-        const pa = eciPt(s.inc, s.raan, s.angle, s.rMult);
-
-        // Line to globe surface (TRIDENT ground-link visual)
-        const dx = GX - pa.sx, dy = GY - pa.sy, d = Math.hypot(dx, dy);
-        const gsx = pa.sx + dx * (1 - GR / d), gsy = pa.sy + dy * (1 - GR / d);
-        let alpha = Math.round((.08 + snn[ni].f / 12 * .14) * 20) / 20;
-        const bkt1 = s.l ? oBkt : cBkt;
-        let arr1 = bkt1.get(alpha); if (!arr1) { arr1 = []; bkt1.set(alpha, arr1); }
-        arr1.push(pa.sx, pa.sy, gsx, gsy);
-
-        // Lines to other firing satellites (bilateral coupling for cross-hemisphere)
-        for (let sj = si + 1; sj < SATS.length; sj++) {
-          const s2 = SATS[sj]; if (!snn[s2.ni].f) continue;
-          const pb = eciPt(s2.inc, s2.raan, s2.angle, s2.rMult);
-          if (Math.hypot(pb.sx - pa.sx, pb.sy - pa.sy) > GR * 3.8) continue;
-          let ea = Math.round((.07 + snn[ni].f / 12 * .11) * 20) / 20;
-          if (s.l !== s2.l) ea = Math.round(ea * BILATERAL_K * 20) / 20;
-          if (ea < 0.04) continue;
-          const bkt2 = s.l ? oBkt : cBkt;
-          let arr2 = bkt2.get(ea); if (!arr2) { arr2 = []; bkt2.set(ea, arr2); }
-          arr2.push(pa.sx, pa.sy, pb.sx, pb.sy);
-        }
-      }
-      cx.lineWidth = 0.7;
-      oBkt.forEach((segs, a) => { cx.strokeStyle = `rgba(255,122,26,${a})`; cx.beginPath(); for (let i = 0; i < segs.length; i += 4) { cx.moveTo(segs[i], segs[i+1]); cx.lineTo(segs[i+2], segs[i+3]); } cx.stroke(); });
-      cBkt.forEach((segs, a) => { cx.strokeStyle = `rgba(0,212,255,${a})`; cx.beginPath(); for (let i = 0; i < segs.length; i += 4) { cx.moveTo(segs[i], segs[i+1]); cx.lineTo(segs[i+2], segs[i+3]); } cx.stroke(); });
-
-      // ── Draw satellite nodes + name labels ─────────────────────────────────
-      cx.shadowBlur = 0;
-      cx.font = "9px 'Space Mono', monospace";
-      cx.textAlign = "left";
-      for (let si = 0; si < SATS.length; si++) {
-        const s = SATS[si], ni = s.ni;
-        const p = eciPt(s.inc, s.raan, s.angle, s.rMult);
-        const hexCol = s.l ? "#ff7a1a" : "#00d4ff";
-        const rgbCol = s.l ? "255,122,26" : "0,212,255";
-        if (snn[ni].f > 0) {
-          cx.shadowColor = hexCol; cx.shadowBlur = 10;
-          cx.fillStyle = hexCol;
-          cx.beginPath(); cx.arc(p.sx, p.sy, 2.8, 0, Math.PI * 2); cx.fill();
-          cx.shadowBlur = 0;
-          // Name label (only when firing — TRIDENT satellite ID display)
-          cx.fillStyle = `rgba(${rgbCol},0.75)`;
-          cx.fillText(s.name, p.sx + 5, p.sy - 4);
-        } else {
-          const depthR = Math.max(0.8, 1.4 + p.depth * 0.6);
-          const op = .10 + Math.max(0, (snn[ni].v + 65) / 75) * .20;
-          cx.fillStyle = `rgba(${rgbCol},${op.toFixed(2)})`;
-          cx.beginPath(); cx.arc(p.sx, p.sy, depthR, 0, Math.PI * 2); cx.fill();
-        }
-      }
-
-      // ── Stage 4: Schumann pulse ring from globe center ──────────────────────
-      if (sf) {
-        cx.strokeStyle = "rgba(255,195,0,.10)"; cx.lineWidth = 1; cx.shadowBlur = 0;
-        cx.beginPath();
-        cx.arc(GX, GY, GR + (ts % 1000 / 1000) * Math.min(W, H) * 0.32, 0, Math.PI * 2);
-        cx.stroke();
-      }
-    }
-
-    raf = requestAnimationFrame(draw);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", rs); };
-  }, []);
-  return <canvas ref={ref} id="hero-canvas" />;
-}
-
-// ─── SCIENCE CANVAS — Full SpikeForge vGPU pipeline + pre-computed adjacency ──
-//  Stage 1 · Pascal Frustum Culling     weights computed in buildGrid (static grid)
-//  Stage 2 · Synaptic LOD               hexagon size by Pascal importance tier
-//  Stage 3 · Vigesimal Base-20          alpha quantised in edge buckets
-//  §10     · Bilateral Coupling 0.30    cross-hemisphere edges attenuated
-function SciCanvas({ onSpk }: { onSpk: (n: number) => void }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const cv = ref.current; if (!cv) return;
-    const cx = cv.getContext("2d")!;
-    let W = 0, H = 0, raf = 0;
-    function rs() {
-      if (!cv) return;
-      W = cv.width = cv.offsetWidth;
-      H = cv.height = cv.offsetHeight;
-    }
-    rs(); window.addEventListener("resize", rs);
-
-    const cols = 9, rows = 8, dx = 46, dy = 40;
-    const DIST_MAX = dx * 1.65;
-    const ns: N[] = [];
-    let edges: [number, number][] = [];
-    // Stage 1: Pascal importance per node (static grid → computed once in buildGrid)
-    let sciPw: Float32Array = new Float32Array(0);
-
-    function buildGrid() {
-      const ox = (W - (cols - 1) * dx) / 2, oy = (H - (rows - 1) * dy) / 2;
-      ns.length = 0;
-      for (let r = 0; r < rows; r++)
-        for (let c = 0; c < cols; c++)
-          ns.push({ x: ox + c * dx + (r % 2 ? dx / 2 : 0), y: oy + r * dy, v: -65 + (Math.random() - .5) * 15, u: -13, f: 0, l: c < cols / 2 });
-      // Adjacency — O(N²) once per resize
-      edges = [];
-      for (let a = 0; a < ns.length; a++)
-        for (let b = a + 1; b < ns.length; b++)
-          if (Math.hypot(ns[b].x - ns[a].x, ns[b].y - ns[a].y) <= DIST_MAX)
-            edges.push([a, b]);
-      // Stage 1: Pascal importance — static grid means weights are stable until next resize
-      sciPw = new Float32Array(ns.length);
-      for (let i = 0; i < ns.length; i++) sciPw[i] = pascalImp(ns[i].x, ns[i].y, W, H);
-    }
-    buildGrid(); window.addEventListener("resize", buildGrid);
-
-    const oBkt = new Map<number, number[]>();
-    const cBkt = new Map<number, number[]>();
-
-    let tot = 0, tk = 0;
-
-    function draw() {
-      raf = requestAnimationFrame(draw);
-      if (document.hidden) return;
-
-      cx.fillStyle = "rgba(2,12,24,.18)"; cx.fillRect(0, 0, W, H); tk++;
-
-      // ── SNN step (Gamma 60Hz) ──────────────────────────────────────────────
-      for (let i = 0; i < ns.length; i++) {
-        const n = ns[i];
-        const I = (Math.random() - .28) * 12 + (i % 13 === tk % 13 ? 9 : 0);
-        if (n.f === 0 && n.v < -62 && Math.abs(I) < 1.2) {
-          n.v += I * .04;
-        } else {
-          if (izhi(n, I)) tot++;
-        }
-      }
-
-      // ── Stage 1+3: Pascal-gated Vigesimal batch edge renderer ─────────────
-      oBkt.clear(); cBkt.clear();
-      for (let e = 0; e < edges.length; e++) {
-        const [a, b] = edges[e];
-        const na = ns[a], nb = ns[b];
-        const f = na.f || nb.f; if (!f) continue;
-        // Stage 1: Pascal importance gate
-        const imp = Math.max(sciPw[a], sciPw[b]);
-        if (imp < PASCAL_CULL) continue;
-        const src = na.f >= nb.f ? na : nb;
-        // Stage 3: Vigesimal quantisation
-        let alpha = Math.round((.1 + src.f / 12 * .2) * 20) / 20;
-        // §10: Bilateral coupling — cross-hemisphere gap junction factor 0.30
-        if (na.l !== nb.l) alpha *= BILATERAL_K;
-        alpha = Math.round(alpha * 20) / 20;
-        if (alpha < 0.04) continue;
-        const bkt = src.l ? oBkt : cBkt;
-        let arr = bkt.get(alpha);
-        if (!arr) { arr = []; bkt.set(alpha, arr); }
-        arr.push(na.x, na.y, nb.x, nb.y);
-      }
-      cx.lineWidth = .6;
-      oBkt.forEach((segs, alpha) => {
-        cx.strokeStyle = `rgba(255,122,26,${alpha})`;
-        cx.beginPath();
-        for (let i = 0; i < segs.length; i += 4) { cx.moveTo(segs[i], segs[i+1]); cx.lineTo(segs[i+2], segs[i+3]); }
-        cx.stroke();
-      });
-      cBkt.forEach((segs, alpha) => {
-        cx.strokeStyle = `rgba(0,212,255,${alpha})`;
-        cx.beginPath();
-        for (let i = 0; i < segs.length; i += 4) { cx.moveTo(segs[i], segs[i+1]); cx.lineTo(segs[i+2], segs[i+3]); }
-        cx.stroke();
-      });
-
-      // ── Stage 1+2: Pascal-gated LOD hexagon renderer ──────────────────────
-      const active: N[] = [];
-      cx.shadowBlur = 0; cx.shadowColor = "transparent";
-      for (let i = 0; i < ns.length; i++) {
-        const n = ns[i];
-        if (n.f > 0) { active.push(n); continue; }
-        const imp = sciPw[i];
-        if (imp < PASCAL_CULL) continue; // Stage 1 gate
-        const op = .1 + Math.max(0, (n.v + 65) / 75) * .28;
-        if (op < 0.048) continue;
-        cx.fillStyle = `rgba(${n.l ? "255,122,26" : "0,212,255"},${op.toFixed(2)})`;
-        // Stage 2: LOD hex radius by Pascal importance tier
-        const sz = lodR(imp) * 2; // hex scale: lodR gives 0.7-2.0, multiply for hexagon
-        cx.beginPath();
-        for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3 - Math.PI / 6; cx.lineTo(n.x + sz * Math.cos(a), n.y + sz * Math.sin(a)); }
-        cx.closePath(); cx.fill();
-      }
-      for (let i = 0; i < active.length; i++) {
-        const n = active[i];
-        cx.shadowColor = n.l ? "#ff7a1a" : "#00d4ff";
-        cx.shadowBlur = 20;
-        cx.fillStyle = n.l ? "#ff7a1a" : "#00d4ff";
-        cx.beginPath();
-        for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3 - Math.PI / 6; cx.lineTo(n.x + 7 * Math.cos(a), n.y + 7 * Math.sin(a)); }
-        cx.closePath(); cx.fill();
-      }
-      cx.shadowBlur = 0; cx.shadowColor = "transparent";
-
-      onSpk(tot);
-    }
-
-    raf = requestAnimationFrame(draw);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", rs);
-      window.removeEventListener("resize", buildGrid);
-    };
-  }, [onSpk]);
-  return <canvas ref={ref} id="sci-canvas" />;
-}
-
-// ─── BENCH BAR ────────────────────────────────────────────────────────────────
-function BenchBar({ w, color }: { w: number; color: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
-  useEffect(() => {
-    const el = ref.current; if (!el) return;
-    const ob = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setWidth(w); ob.disconnect(); } }, { threshold: .5 });
-    ob.observe(el);
-    return () => ob.disconnect();
-  }, [w]);
-  return <div ref={ref} className="bbw"><div className="bb" style={{ width: `${width}%`, background: color, transition: "width 1.4s cubic-bezier(.4,0,.2,1)" }} /></div>;
-}
-
-// ─── ANIMATED COUNTER ─────────────────────────────────────────────────────────
-function Counter({ target, suffix, dec = 0 }: { target: number; suffix: string; dec?: number }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const done = useRef(false);
-  useEffect(() => {
-    const el = ref.current; if (!el) return;
-    const ob = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting && !done.current) {
-        done.current = true;
-        const dur = 1500, s = performance.now();
-        function f(n: number) {
-          const p = Math.min((n - s) / dur, 1), v = target * (p < .5 ? 2 * p * p : 1 - 2 * (1 - p) * (1 - p));
-          el.textContent = v.toFixed(dec) + suffix;
-          if (p < 1) requestAnimationFrame(f);
-        }
-        requestAnimationFrame(f);
-        ob.disconnect();
-      }
-    }, { threshold: .5 });
-    ob.observe(el);
-    return () => ob.disconnect();
-  }, [target, suffix, dec]);
-  return <span ref={ref}>0{suffix}</span>;
-}
-
-// ─── REVEAL WRAPPER ───────────────────────────────────────────────────────────
-function Rv({ children, cls = "", style }: { children: React.ReactNode; cls?: string; style?: React.CSSProperties }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = ref.current; if (!el) return;
-    const ob = new IntersectionObserver(([e]) => { if (e.isIntersecting) { el.classList.add("vis"); ob.disconnect(); } }, { threshold: .12, rootMargin: "0px 0px -40px 0px" });
-    ob.observe(el);
-    return () => ob.disconnect();
-  }, []);
-  return <div ref={ref} className={`rv ${cls}`} style={style}>{children}</div>;
-}
-
-// ─── GAME ICONS (original SVG art — no trademarks) ────────────────────────────
-const GAMES_DATA: { icon: (c: string) => React.ReactNode; name: string; genre: string; plat: string; lat: string; ring: string; col: string }[] = [
-  {
-    col: "#00c8ff", name: "Fortnite", genre: "Battle Royale", plat: "PC · Mobile", lat: "-47ms", ring: "Ring 2 · UDP",
-    icon: (c) => <>
-      <polygon points="24,4 36,12 40,26 24,44 8,26 12,12" stroke={c} strokeWidth="2" fill={c+"18"}/>
-      <polygon points="24,12 32,18 34,28 24,38 14,28 16,18" stroke={c} strokeWidth="1.2" fill={c+"28"}/>
-      <line x1="24" y1="12" x2="24" y2="38" stroke={c} strokeWidth="1.5" opacity=".7"/>
-      <line x1="14" y1="28" x2="34" y2="28" stroke={c} strokeWidth="1.5" opacity=".7"/>
-    </>
-  },
-  {
-    col: "#ff4655", name: "Valorant", genre: "FPS Tactical", plat: "PC", lat: "-38ms", ring: "Ring 2 · UDP",
-    icon: (c) => <>
-      <path d="M8 10 L24 38 L40 10" stroke={c} strokeWidth="2.5" fill="none" strokeLinejoin="round"/>
-      <path d="M16 10 L24 26 L32 10" stroke={c} strokeWidth="1.5" fill={c+"22"} strokeLinejoin="round"/>
-      <circle cx="24" cy="24" r="3" fill={c}/>
-    </>
-  },
-  {
-    col: "#ff6b35", name: "Free Fire", genre: "Battle Royale", plat: "Mobile", lat: "-61ms", ring: "Ring 2 · UDP",
-    icon: (c) => <>
-      <circle cx="24" cy="24" r="16" stroke={c} strokeWidth="1.5" fill={c+"14"}/>
-      <path d="M24 10 C24 10 32 18 30 26 C28 32 20 32 18 26 C16 18 24 10 24 10Z" fill={c} opacity=".8"/>
-      <path d="M24 16 C24 16 28 22 27 26 C26 29 22 29 21 26 C20 22 24 16 24 16Z" fill={c+"aa"}/>
-      <circle cx="24" cy="24" r="3" fill="white" opacity=".6"/>
-    </>
-  },
-  {
-    col: "#9b5de5", name: "Mobile Legends", genre: "MOBA", plat: "Mobile", lat: "-56ms", ring: "Ring 2 · UDP",
-    icon: (c) => <>
-      <path d="M24 6 L42 24 L24 42 L6 24 Z" stroke={c} strokeWidth="2" fill={c+"18"}/>
-      <path d="M24 12 L36 24 L24 36 L12 24 Z" stroke={c} strokeWidth="1.5" fill={c+"28"}/>
-      <path d="M18 24 L24 18 L30 24 L24 30 Z" fill={c} opacity=".9"/>
-      <line x1="6" y1="24" x2="42" y2="24" stroke={c} strokeWidth=".8" opacity=".4"/>
-      <line x1="24" y1="6" x2="24" y2="42" stroke={c} strokeWidth=".8" opacity=".4"/>
-    </>
-  },
-  {
-    col: "#f5c842", name: "PUBG Mobile", genre: "Battle Royale", plat: "Mobile", lat: "-44ms", ring: "Ring 2 · UDP",
-    icon: (c) => <>
-      <rect x="8" y="16" width="32" height="20" rx="4" stroke={c} strokeWidth="2" fill={c+"18"}/>
-      <rect x="14" y="10" width="20" height="10" rx="2" stroke={c} strokeWidth="1.5" fill={c+"28"}/>
-      <circle cx="24" cy="26" r="5" stroke={c} strokeWidth="1.5" fill={c+"33"}/>
-      <circle cx="24" cy="26" r="2" fill={c}/>
-      <line x1="8" y1="26" x2="13" y2="26" stroke={c} strokeWidth="1.5"/>
-      <line x1="35" y1="26" x2="40" y2="26" stroke={c} strokeWidth="1.5"/>
-    </>
-  },
-  {
-    col: "#cd4232", name: "Apex Legends", genre: "FPS · BR", plat: "PC · Mobile", lat: "-41ms", ring: "Ring 2 · UDP",
-    icon: (c) => <>
-      <path d="M24 6 L40 38 H8 Z" stroke={c} strokeWidth="2" fill={c+"18"} strokeLinejoin="round"/>
-      <path d="M24 14 L34 34 H14 Z" fill={c} opacity=".4"/>
-      <path d="M20 38 L24 28 L28 38" stroke={c} strokeWidth="1.5" fill={c+"44"}/>
-      <line x1="14" y1="28" x2="34" y2="28" stroke={c} strokeWidth="1" opacity=".6"/>
-    </>
-  },
-  {
-    col: "#8ecaff", name: "CS2", genre: "FPS Tactical", plat: "PC", lat: "-33ms", ring: "Ring 2 · UDP",
-    icon: (c) => <>
-      <rect x="10" y="18" width="28" height="16" rx="3" stroke={c} strokeWidth="2" fill={c+"18"}/>
-      <rect x="34" y="20" width="8" height="4" rx="1" fill={c} opacity=".7"/>
-      <rect x="6" y="21" width="8" height="3" rx="1" fill={c} opacity=".7"/>
-      <circle cx="20" cy="26" r="3" stroke={c} strokeWidth="1.5" fill={c+"33"}/>
-      <line x1="10" y1="26" x2="6" y2="26" stroke={c} strokeWidth="1.2"/>
-      <line x1="24" y1="14" x2="24" y2="18" stroke={c} strokeWidth="1.5" opacity=".6"/>
-    </>
-  },
-  {
-    col: "#c89b3c", name: "League of Legends", genre: "MOBA", plat: "PC", lat: "-29ms", ring: "Ring 2 · UDP",
-    icon: (c) => <>
-      <circle cx="24" cy="24" r="17" stroke={c} strokeWidth="2" fill={c+"14"}/>
-      <path d="M24 8 L28 20 L40 20 L30 28 L34 40 L24 32 L14 40 L18 28 L8 20 L20 20 Z" fill={c} opacity=".7"/>
-      <circle cx="24" cy="24" r="5" fill={c}/>
-    </>
-  },
-  {
-    col: "#f5a623", name: "Call of Duty", genre: "FPS · BR", plat: "PC · Mobile", lat: "-52ms", ring: "Ring 2 · UDP",
-    icon: (c) => <>
-      <circle cx="24" cy="24" r="16" stroke={c} strokeWidth="2" fill={c+"14"}/>
-      <line x1="24" y1="8" x2="24" y2="40" stroke={c} strokeWidth="2"/>
-      <line x1="8" y1="24" x2="40" y2="24" stroke={c} strokeWidth="2"/>
-      <circle cx="24" cy="24" r="4" fill={c}/>
-      <circle cx="24" cy="24" r="8" stroke={c} strokeWidth="1" fill="none" opacity=".5"/>
-    </>
-  },
-  {
-    col: "#22d3ee", name: "Genshin Impact", genre: "Action RPG", plat: "PC · Mobile", lat: "-35ms", ring: "Ring 1 · HTTPS",
-    icon: (c) => <>
-      <polygon points="24,4 44,16 44,32 24,44 4,32 4,16" stroke={c} strokeWidth="2" fill={c+"14"}/>
-      <polygon points="24,12 37,19.5 37,28.5 24,36 11,28.5 11,19.5" stroke={c} strokeWidth="1" fill={c+"22"}/>
-      <path d="M24 14 L24 34 M14 20 L34 20 M14 28 L34 28" stroke={c} strokeWidth="1.2" opacity=".6"/>
-      <circle cx="24" cy="24" r="4" fill={c} opacity=".9"/>
-    </>
-  },
-  {
-    col: "#5b8731", name: "Minecraft", genre: "Sandbox", plat: "PC · Mobile", lat: "-18ms", ring: "Ring 0 · TCP",
-    icon: (c) => <>
-      <rect x="8" y="8" width="14" height="14" stroke={c} strokeWidth="2" fill={c+"22"}/>
-      <rect x="26" y="8" width="14" height="14" stroke={c} strokeWidth="2" fill={c+"33"}/>
-      <rect x="8" y="26" width="14" height="14" stroke={c} strokeWidth="2" fill={c+"33"}/>
-      <rect x="26" y="26" width="14" height="14" stroke={c} strokeWidth="2" fill={c+"22"}/>
-      <line x1="8" y1="8" x2="40" y2="40" stroke={c} strokeWidth="1" opacity=".3"/>
-    </>
-  },
-  {
-    col: "#e2231a", name: "Roblox", genre: "Platform", plat: "PC · Mobile", lat: "-22ms", ring: "Ring 1 · HTTPS",
-    icon: (c) => <>
-      <rect x="10" y="10" width="28" height="28" rx="4" stroke={c} strokeWidth="2" fill={c+"18"}/>
-      <rect x="16" y="16" width="16" height="16" rx="2" fill={c} opacity=".7"/>
-      <rect x="20" y="20" width="8" height="8" rx="1" fill="white" opacity=".8"/>
-      <line x1="10" y1="24" x2="38" y2="24" stroke={c} strokeWidth=".8" opacity=".4"/>
-      <line x1="24" y1="10" x2="24" y2="38" stroke={c} strokeWidth=".8" opacity=".4"/>
-    </>
-  },
-];
-
-// ─── PING METER (Before / After — like ExitLag's hero) ────────────────────────
-function PingMeter() {
-  const [active, setActive] = useState(false);
-  const [ping, setPing] = useState(127);
-  const [loss, setLoss] = useState(18);
-
-  const runCycle = useCallback(() => {
-    setActive(false); setPing(127); setLoss(18);
-    const t1 = setTimeout(() => {
-      setActive(true);
-      let p = 127;
-      const iv1 = setInterval(() => { p = Math.max(23, p - 5); setPing(p); if (p <= 23) clearInterval(iv1); }, 35);
-      let l = 18;
-      const iv2 = setInterval(() => { l = Math.max(0, l - 1); setLoss(l); if (l <= 0) clearInterval(iv2); }, 75);
-    }, 2400);
-    return t1;
-  }, []);
-
-  useEffect(() => {
-    let t = runCycle();
-    const loop = setInterval(() => { clearTimeout(t); t = runCycle(); }, 7200);
-    return () => { clearTimeout(t); clearInterval(loop); };
-  }, [runCycle]);
-
-  return (
-    <div className="ping-hud">
-      <div className="phud-topbar">
-        <div className="phud-dot" style={{ background: active ? "#00ff94" : "#ff3355", boxShadow: active ? "0 0 8px #00ff94" : "0 0 8px #ff3355" }} />
-        <span className="phud-status-txt">ZEROLAG · {active ? "ROUTING ACTIVE" : "INACTIVE"}</span>
-        <span className="phud-server">{active ? "LATAM-1 · OPTIMAL" : "NO ROUTE"}</span>
-      </div>
-
-      <div className="phud-compare">
-        <div className={`phud-side ${!active ? "phud-active-side" : ""}`}>
-          <div className="phud-tag phud-tag-bad">WITHOUT</div>
-          <div className="phud-big" style={{ color: active ? "rgba(255,51,85,.25)" : "#ff3355", textShadow: !active ? "0 0 30px rgba(255,51,85,.5)" : "none" }}>127<span>ms</span></div>
-          <div className="phud-pill phud-pill-bad" style={{ opacity: active ? .3 : 1 }}>⚠ HIGH PING</div>
-          <div className="phud-loss-row" style={{ opacity: active ? .3 : 1 }}><span>Packet loss</span><b style={{ color: "#ff3355" }}>18%</b></div>
-          <div className="phud-loss-row" style={{ opacity: active ? .3 : 1 }}><span>Jitter</span><b style={{ color: "#f5c842" }}>±32ms</b></div>
-        </div>
-
-        <div className="phud-arrow-col">
-          <div className={`phud-arrow ${active ? "phud-arrow-on" : ""}`}>→</div>
-        </div>
-
-        <div className={`phud-side ${active ? "phud-active-side" : ""}`}>
-          <div className="phud-tag" style={{ color: active ? "#00ff94" : "rgba(0,255,148,.25)", borderColor: active ? "rgba(0,255,148,.4)" : "rgba(0,255,148,.1)" }}>WITH ZEROLAG</div>
-          <div className="phud-big" style={{ color: active ? "#00ff94" : "rgba(0,255,148,.2)", textShadow: active ? "0 0 40px rgba(0,255,148,.5), 0 0 80px rgba(0,255,148,.2)" : "none" }}>{ping}<span>ms</span></div>
-          <div className="phud-pill" style={{ background: active ? "rgba(0,255,148,.15)" : "rgba(0,255,148,.04)", color: active ? "#00ff94" : "rgba(0,255,148,.25)", borderColor: active ? "rgba(0,255,148,.3)" : "rgba(0,255,148,.08)" }}>{active ? "✓ OPTIMIZED" : "● STANDBY"}</div>
-          <div className="phud-loss-row" style={{ opacity: active ? 1 : .2 }}><span>Packet loss</span><b style={{ color: "#00ff94" }}>{active ? `${loss}%` : "…"}</b></div>
-          <div className="phud-loss-row" style={{ opacity: active ? 1 : .2 }}><span>Jitter</span><b style={{ color: "#00ff94" }}>{active ? "±2ms" : "…"}</b></div>
-        </div>
-      </div>
-
-      <div className="phud-route">
-        <div className="phud-node">YOU</div>
-        <div className={`phud-line ${active ? "phud-line-on" : ""}`}>{active && <div className="phud-pkt" />}</div>
-        <div className={`phud-node phud-node-snn ${active ? "phud-node-snn-on" : ""}`}>SNN</div>
-        <div className={`phud-line ${active ? "phud-line-on" : ""}`}>{active && <div className="phud-pkt" style={{ animationDelay: ".5s" }} />}</div>
-        <div className="phud-node">SERVER</div>
-      </div>
-    </div>
-  );
-}
-
-// ─── APP ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [scrolled, setScrolled] = useState(false);
-  const [sciSpk, setSciSpk] = useState(0);
+  const [sciSpk,   setSciSpk]   = useState(0);
 
   useEffect(() => {
-    // Custom cursor
-    const cur = document.createElement("div"); cur.id = "cursor";
+    // Custom cursor — orange crosshair
+    const cur   = document.createElement("div"); cur.id = "cursor";
     cur.innerHTML = `<svg viewBox="0 0 12 12" width="12" height="12"><polygon points="6,0 11,9 6,7 1,9" fill="#ff7a1a"/></svg>`;
     const trail = document.createElement("div"); trail.id = "cursor-trail";
     document.body.appendChild(cur); document.body.appendChild(trail);
     let mx = 0, my = 0;
-    const mm = (e: MouseEvent) => { mx = e.clientX; my = e.clientY; cur.style.left = mx + "px"; cur.style.top = my + "px"; setTimeout(() => { trail.style.left = mx + "px"; trail.style.top = my + "px"; }, 80); };
+    const mm = (e: MouseEvent) => {
+      mx = e.clientX; my = e.clientY;
+      cur.style.left = mx + "px"; cur.style.top = my + "px";
+      setTimeout(() => { trail.style.left = mx + "px"; trail.style.top = my + "px"; }, 80);
+    };
     document.addEventListener("mousemove", mm);
     const scroll = () => setScrolled(window.scrollY > 60);
     window.addEventListener("scroll", scroll, { passive: true });
@@ -694,7 +42,7 @@ export default function App() {
 
   return (
     <>
-      {/* NAV */}
+      {/* ── NAV ──────────────────────────────────────────────────────────── */}
       <nav id="nav" className={scrolled ? "scrolled" : ""}>
         <div className="nav-in">
           <a href="#" className="nav-logo">
@@ -713,7 +61,7 @@ export default function App() {
         </div>
       </nav>
 
-      {/* HERO */}
+      {/* ── HERO ─────────────────────────────────────────────────────────── */}
       <section id="hero">
         <HeroCanvas />
         <div className="hero-in">
@@ -749,13 +97,11 @@ export default function App() {
               <div className="hnum"><div className="hnv">$0</div><div className="hnl">Forever free plan</div></div>
             </div></Rv>
           </div>
-          <Rv cls="d2">
-            <PingMeter />
-          </Rv>
+          <Rv cls="d2"><PingMeter /></Rv>
         </div>
       </section>
 
-      {/* SOCIAL PROOF */}
+      {/* ── SOCIAL PROOF STRIP ────────────────────────────────────────────── */}
       <div className="social-strip">
         <div className="ss-item"><span className="ss-num">-44ms</span><span className="ss-lbl">Avg latency saved</span></div>
         <div className="ss-sep" />
@@ -768,7 +114,7 @@ export default function App() {
         <div className="ss-item"><span className="ss-num">302N</span><span className="ss-lbl">AI neurons</span></div>
       </div>
 
-      {/* VS LEADERBOARD */}
+      {/* ── PING KILLER RANKING ───────────────────────────────────────────── */}
       <div className="vs-strip">
         <div className="vs-header">
           <div className="vs-header-left">
@@ -781,13 +127,9 @@ export default function App() {
           </div>
         </div>
 
-        {/* ZeroLag winner card — separate, prominent */}
         <div className="vs-winner-card">
           <div className="vs-winner-left">
-            <div className="vs-winner-rank">
-              <span className="vs-crown">👑</span>
-              <span className="vs-rank-num">#1</span>
-            </div>
+            <div className="vs-winner-rank"><span className="vs-crown">👑</span><span className="vs-rank-num">#1</span></div>
             <div className="vs-winner-info">
               <div className="vs-winner-name">ZeroLag <span className="vs-winner-tag">by KlonOS</span></div>
               <div className="vs-winner-tech">SNN AI · TUN VPN · Android + iOS + Chrome · FREE</div>
@@ -798,45 +140,33 @@ export default function App() {
               <div className="vs-winner-bar" />
               <div className="vs-winner-bar-label">100% — best result</div>
             </div>
-            <div className="vs-winner-num">
-              <span className="vs-win-big">44</span>
-              <span className="vs-win-unit">ms removed</span>
-            </div>
+            <div className="vs-winner-num"><span className="vs-win-big">44</span><span className="vs-win-unit">ms removed</span></div>
           </div>
         </div>
 
-        {/* Competitors — clearly labelled as "worse" */}
-        <div className="vs-comp-header">
-          <span className="vs-comp-label">COMPETITORS — removing less ping than ZeroLag</span>
-        </div>
+        <div className="vs-comp-header"><span className="vs-comp-label">COMPETITORS — removing less ping than ZeroLag</span></div>
         <div className="vs-board">
           {([
-            { rank: "2", name: "ExitLag",  ms: 28, tech: "Multi-path · PC only · paid",          pct: 64 },
-            { rank: "3", name: "WTFast",   ms: 21, tech: "GPN tunnel · No mobile · paid",         pct: 48 },
-            { rank: "4", name: "Mudfish",  ms: 18, tech: "Proxy nodes · Complex setup · paid",    pct: 41 },
-            { rank: "5", name: "NoPing",   ms: 15, tech: "Manual config · Windows only · paid",   pct: 34 },
+            { rank: "2", name: "ExitLag",  ms: 28, tech: "Multi-path · PC only · paid",       pct: 64 },
+            { rank: "3", name: "WTFast",   ms: 21, tech: "GPN tunnel · No mobile · paid",      pct: 48 },
+            { rank: "4", name: "Mudfish",  ms: 18, tech: "Proxy nodes · Complex setup · paid", pct: 41 },
+            { rank: "5", name: "NoPing",   ms: 15, tech: "Manual config · Windows only · paid",pct: 34 },
           ] as const).map(({ rank, name, ms, tech, pct }) => (
             <div key={name} className="vs-row2">
               <span className="vs-rank">{rank}</span>
               <span className="vs-nm">{name}</span>
-              <div className="vs-bar-wrap">
-                <div className="vs-bar2" style={{ width: `${pct}%`, background: "rgba(200,223,240,.14)" }} />
-              </div>
-              <div className="vs-ms-wrap">
-                <span className="vs-ms-num">{ms}ms</span>
-                <span className="vs-ms-removed">removed</span>
-              </div>
+              <div className="vs-bar-wrap"><div className="vs-bar2" style={{ width: `${pct}%`, background: "rgba(200,223,240,.14)" }} /></div>
+              <div className="vs-ms-wrap"><span className="vs-ms-num">{ms}ms</span><span className="vs-ms-removed">removed</span></div>
               <span className="vs-tech2">{tech}</span>
             </div>
           ))}
         </div>
-
         <div className="vs-footnote">
           ✓ ZeroLag removes <strong>44ms</strong> of ping — {Math.round(44/28*100-100)}% more than ExitLag, {Math.round(44/15*100-100)}% more than NoPing. Measured on Free Fire SA servers from São Paulo. Higher = better.
         </div>
       </div>
 
-      {/* TICKER */}
+      {/* ── TICKER ────────────────────────────────────────────────────────── */}
       <div className="ticker">
         <div className="ttrack">
           {[...TICKER_ITEMS, ...TICKER_ITEMS].map(([b, t], i) => (
@@ -845,7 +175,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* HOW IT WORKS */}
+      {/* ── HOW IT WORKS ─────────────────────────────────────────────────── */}
       <section id="how">
         <div className="wrap">
           <Rv cls="sh">
@@ -866,10 +196,10 @@ export default function App() {
           </Rv>
           <div className="agents">
             {[
-              { color: "#00ff94", name: "PODADOR", type: "RS · Right Hemisphere · Analytic", desc: "Regular Spiking. Slow sustained bursts. Hunts heavy third-party scripts by Pascal Cascade priority — highest RAM weight attacked first." },
-              { color: "#22d3ee", name: "DRENADOR", type: "FS · Left Hemisphere · Reactive", desc: "Fast Spiking. Short rapid bursts. Targets advertising iframes — detected by cross-origin geometry and ring 4 Pascal classification." },
-              { color: "#f5c842", name: "REGULADOR", type: "CH · Right Hemisphere · Analytic", desc: "Chattering. Repetitive bursts. Identifies telemetry and analytics payloads — 27 tracker signatures from Google Analytics to FullStory." },
-              { color: "#9b5de5", name: "SCHUMANN", type: "IB · Left Hemisphere · Synchronizer", desc: "Intrinsic Burst. Pacemaker of the squad. Bilateral coupling κ=0.30 synchronizes the other three at 7.83Hz. The coordination layer." },
+              { color: "#00ff94", name: "PODADOR",   type: "RS · Right Hemisphere · Analytic",    desc: "Regular Spiking. Slow sustained bursts. Hunts heavy third-party scripts by Pascal Cascade priority — highest RAM weight attacked first." },
+              { color: "#22d3ee", name: "DRENADOR",  type: "FS · Left Hemisphere · Reactive",     desc: "Fast Spiking. Short rapid bursts. Targets advertising iframes — detected by cross-origin geometry and ring 4 Pascal classification." },
+              { color: "#f5c842", name: "REGULADOR", type: "CH · Right Hemisphere · Analytic",    desc: "Chattering. Repetitive bursts. Identifies telemetry and analytics payloads — 27 tracker signatures from Google Analytics to FullStory." },
+              { color: "#9b5de5", name: "SCHUMANN",  type: "IB · Left Hemisphere · Synchronizer", desc: "Intrinsic Burst. Pacemaker of the squad. Bilateral coupling κ=0.30 synchronizes the other three at 7.83Hz. The coordination layer." },
             ].map(({ color, name, type, desc }, i) => (
               <Rv key={name} cls={`d${i + 1} agent`} style={{ "--ac": color } as React.CSSProperties}>
                 <div className="astr" style={{ background: color }} />
@@ -889,7 +219,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* PRODUCTS */}
+      {/* ── PRODUCTS ─────────────────────────────────────────────────────── */}
       <section id="products">
         <div className="wrap">
           <Rv cls="sh">
@@ -930,7 +260,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* GAMES */}
+      {/* ── GAMES ─────────────────────────────────────────────────────────── */}
       <section id="games">
         <div className="wrap">
           <Rv cls="sh">
@@ -938,7 +268,6 @@ export default function App() {
             <h2 className="stitle display">Zero lag.<br /><em>Every game.</em></h2>
             <p className="ssub">ZeroLag intercepts every game packet at the TUN layer before it reaches your ISP and routes it through the fastest Pascal Ring path. The SNN engine learns each game's traffic signature in real time — no config needed.</p>
           </Rv>
-
           <div className="games-strip">
             <div className="gs-badge"><span className="gsbdot" />LIVE · SNN PACKET ROUTING ACTIVE</div>
             <div className="gs-stats">
@@ -947,7 +276,6 @@ export default function App() {
               <div className="gss"><span>Schumann Lock</span><b>7.83Hz ✓</b></div>
             </div>
           </div>
-
           <div className="games-grid">
             {GAMES_DATA.map(({ icon, name, genre, plat, lat, ring, col }, i) => (
               <Rv key={name} cls={`d${(i % 4) + 1} gcard`} style={{ "--gc": col } as React.CSSProperties}>
@@ -964,7 +292,6 @@ export default function App() {
               </Rv>
             ))}
           </div>
-
           <Rv cls="d2 games-cta">
             <p className="gcta-note">Works out of the box on Android APK · Chrome Extension · iOS PWA · No configuration required</p>
             <div className="gcta-btns">
@@ -975,7 +302,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* SCIENCE */}
+      {/* ── SCIENCE ───────────────────────────────────────────────────────── */}
       <section id="science">
         <div className="wrap">
           <div className="scilay">
@@ -997,7 +324,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* BENCHMARKS */}
+      {/* ── BENCHMARKS ────────────────────────────────────────────────────── */}
       <section id="benchmarks">
         <div className="wrap">
           <Rv cls="sh">
@@ -1042,7 +369,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* PRICING */}
+      {/* ── PRICING ───────────────────────────────────────────────────────── */}
       <section id="pricing">
         <div className="wrap">
           <Rv cls="sh" style={{ textAlign: "center", maxWidth: 560, margin: "0 auto 72px" }}>
@@ -1050,10 +377,8 @@ export default function App() {
             <h2 className="stitle display">Kill your ping.<br /><em>Choose your plan.</em></h2>
             <p className="ssub">Solo player, squad grinder, or gaming café owner — there's a plan built for you. No tricks, no confusion.</p>
           </Rv>
-
           <div className="pgrid">
 
-            {/* ── FREE ── */}
             <Rv cls="pc">
               <div className="ptier">Solo Player</div>
               <div className="pname2">Free</div>
@@ -1073,7 +398,6 @@ export default function App() {
               <a href="#" className="pbtn pbtn-g">Get ZeroLag free →</a>
             </Rv>
 
-            {/* ── PRO ── */}
             <Rv cls="pc pop d1">
               <div className="pbdg">MOST POPULAR</div>
               <div className="ptier">Ranked Grinder</div>
@@ -1094,13 +418,11 @@ export default function App() {
               <a href="#" className="pbtn pbtn-m">Start Pro — 14 days free</a>
             </Rv>
 
-            {/* ── ENTERPRISE ── */}
             <Rv cls="pc d2">
               <div className="ptier">Cibercafé · Esports Org</div>
               <div className="pname2">Enterprise</div>
               <div className="pamt">$299<sub>/mo</sub></div>
               <div className="pper">Unlimited seats · All your PCs + phones · SLA 99.9%</div>
-
               <div className="ent-who">
                 <div className="ent-who-title">This plan is for</div>
                 <div className="ent-who-items">
@@ -1110,7 +432,6 @@ export default function App() {
                   <span>🏠 Gaming bootcamp houses</span>
                 </div>
               </div>
-
               <div className="pdiv" />
               <ul className="pfeats">
                 <li><span className="ok">✓</span><span>Everything in Pro on <span className="fem">unlimited devices</span></span></li>
@@ -1129,7 +450,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* CTA */}
+      {/* ── CTA ───────────────────────────────────────────────────────────── */}
       <section id="cta">
         <div className="ctain">
           <Rv cls="ctal">Free · No card · Works in 60 seconds</Rv>
@@ -1137,13 +458,13 @@ export default function App() {
           <Rv cls="d2"><p className="ctas">Your rivals aren't better than you. They just have lower ping. Install ZeroLag free and find out exactly how many milliseconds you've been losing.</p></Rv>
           <Rv cls="d3" style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
             <a href="#pricing" className="btn-m" style={{ fontSize: 16, padding: "16px 36px" }}>Get ZeroLag free →</a>
-            <a href="#games" className="btn-g" style={{ fontSize: 16, padding: "16px 28px" }}>See supported games ↓</a>
+            <a href="#games"   className="btn-g" style={{ fontSize: 16, padding: "16px 28px" }}>See supported games ↓</a>
           </Rv>
           <Rv cls="d4 ctanote">No credit card · No account needed · Android + Chrome + iOS</Rv>
         </div>
       </section>
 
-      {/* FOOTER */}
+      {/* ── FOOTER ────────────────────────────────────────────────────────── */}
       <footer>
         <div className="wrap">
           <div className="fg">

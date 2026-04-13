@@ -1,0 +1,624 @@
+use crate::snn::neuron::NeuronRole;
+use serde::{Serialize, Deserialize};
+use std::collections::HashMap;
+use tracing::info;
+
+const SATURATION_THRESHOLD: usize = 790;
+const WEAK_SYNAPSE_THRESHOLD: f32 = 0.05;
+const WEIGHT_TOLERANCE_MIN: f32 = -2.5;
+const WEIGHT_TOLERANCE_MAX: f32 = 2.5;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NeuronSpec {
+    pub role: String,
+    pub qty_min: usize,
+    pub qty_max: usize,
+    pub threshold_min: f32,
+    pub threshold_max: f32,
+    pub expected_spike_min: usize,
+    pub expected_spike_max: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SynapseSpec {
+    pub max_per_neuron_in: usize,
+    pub max_per_neuron_out: usize,
+    pub max_total: usize,
+    pub weight_tolerance_min: f32,
+    pub weight_tolerance_max: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EngineeringBlueprint {
+    pub revision: String,
+    pub neuron_specs: Vec<NeuronSpec>,
+    pub synapse_spec: SynapseSpec,
+    pub max_neurons: usize,
+    pub target_ppm_neurons: f64,
+    pub target_ppm_synapses: f64,
+}
+
+impl EngineeringBlueprint {
+    pub fn pong_v1() -> Self {
+        Self {
+            revision: "PONG-BOM-R1".to_string(),
+            neuron_specs: vec![
+                NeuronSpec {
+                    role: "Input".to_string(),
+                    qty_min: 10, qty_max: 10,
+                    threshold_min: 0.03, threshold_max: 0.1,
+                    expected_spike_min: 100, expected_spike_max: 799,
+                },
+                NeuronSpec {
+                    role: "Processing".to_string(),
+                    qty_min: 4, qty_max: 30,
+                    threshold_min: 0.1, threshold_max: 1.5,
+                    expected_spike_min: 1, expected_spike_max: 799,
+                },
+                NeuronSpec {
+                    role: "Output".to_string(),
+                    qty_min: 3, qty_max: 3,
+                    threshold_min: 0.1, threshold_max: 1.5,
+                    expected_spike_min: 50, expected_spike_max: 799,
+                },
+            ],
+            synapse_spec: SynapseSpec {
+                max_per_neuron_in: 15,
+                max_per_neuron_out: 15,
+                max_total: 150,
+                weight_tolerance_min: WEIGHT_TOLERANCE_MIN,
+                weight_tolerance_max: WEIGHT_TOLERANCE_MAX,
+            },
+            max_neurons: 40,
+            target_ppm_neurons: 50_000.0,
+            target_ppm_synapses: 100_000.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum StationId {
+    AddNeuron,
+    AddSynapse,
+    MutateWeight,
+    MutateThreshold,
+    MutateLearning,
+    RemoveSynapse,
+    Crossover,
+}
+
+impl std::fmt::Display for StationId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StationId::AddNeuron => write!(f, "ST1_AddNeuron"),
+            StationId::AddSynapse => write!(f, "ST2_AddSynapse"),
+            StationId::MutateWeight => write!(f, "ST3_MutWeight"),
+            StationId::MutateThreshold => write!(f, "ST4_MutThresh"),
+            StationId::MutateLearning => write!(f, "ST5_MutLearn"),
+            StationId::RemoveSynapse => write!(f, "ST6_RemSyn"),
+            StationId::Crossover => write!(f, "ST7_Crossover"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum QualityVerdict {
+    Pass,
+    Reject,
+    Clamp,
+}
+
+#[derive(Debug, Clone)]
+pub struct StationRecord {
+    pub station: StationId,
+    pub total_ops: usize,
+    pub passed: usize,
+    pub rejected: usize,
+    pub clamped: usize,
+    pub alarm_count: usize,
+    pub suspended_until_gen: Option<usize>,
+}
+
+impl StationRecord {
+    pub fn new(station: StationId) -> Self {
+        Self {
+            station, total_ops: 0, passed: 0,
+            rejected: 0, clamped: 0, alarm_count: 0,
+            suspended_until_gen: None,
+        }
+    }
+
+    pub fn ppm(&self) -> f64 {
+        if self.total_ops == 0 { return 0.0; }
+        (self.rejected as f64 / self.total_ops as f64) * 1_000_000.0
+    }
+
+    pub fn record(&mut self, verdict: QualityVerdict) {
+        self.total_ops += 1;
+        match verdict {
+            QualityVerdict::Pass => self.passed += 1,
+            QualityVerdict::Reject => {
+                self.rejected += 1;
+                self.alarm_count += 1;
+            },
+            QualityVerdict::Clamp => self.clamped += 1,
+        }
+    }
+
+    pub fn reset_generation(&mut self) {
+        self.total_ops = 0;
+        self.passed = 0;
+        self.rejected = 0;
+        self.clamped = 0;
+        self.alarm_count = 0;
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PFMEAEntry {
+    pub station: StationId,
+    pub failure_mode: String,
+    pub severity: u8,
+    pub occurrence: u8,
+    pub detection: u8,
+}
+
+impl PFMEAEntry {
+    pub fn rpn(&self) -> u16 {
+        self.severity as u16 * self.occurrence as u16 * self.detection as u16
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct GenerationPPM {
+    pub generation: usize,
+    pub ppm_neurons_dead: f64,
+    pub ppm_synapses_waste: f64,
+    pub ppm_by_station: HashMap<String, f64>,
+    pub total_neurons: usize,
+    pub dead_neurons: usize,
+    pub total_synapses: usize,
+    pub waste_synapses: usize,
+    pub useful_synapses: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CertificateOfConformity {
+    pub revision: String,
+    pub generation: usize,
+    pub fitness: f64,
+    pub neurons: usize,
+    pub synapses: usize,
+    pub ppm_neurons: f64,
+    pub ppm_synapses: f64,
+    pub dead_neurons: Vec<usize>,
+    pub useful_synapses: usize,
+    pub quality_grade: String,
+    pub approved: bool,
+    pub inspection_notes: Vec<String>,
+}
+
+pub struct PlantQualitySystem {
+    pub blueprint: EngineeringBlueprint,
+    pub stations: HashMap<String, StationRecord>,
+    pub pfmea: Vec<PFMEAEntry>,
+    pub ppm_history: Vec<GenerationPPM>,
+    pub cumulative_stations: HashMap<String, StationRecord>,
+}
+
+impl PlantQualitySystem {
+    pub fn new() -> Self {
+        let blueprint = EngineeringBlueprint::pong_v1();
+        let mut stations = HashMap::new();
+        let mut cumulative = HashMap::new();
+        for sid in &[
+            StationId::AddNeuron, StationId::AddSynapse,
+            StationId::MutateWeight, StationId::MutateThreshold,
+            StationId::MutateLearning, StationId::RemoveSynapse,
+            StationId::Crossover,
+        ] {
+            let key = sid.to_string();
+            stations.insert(key.clone(), StationRecord::new(*sid));
+            cumulative.insert(key, StationRecord::new(*sid));
+        }
+
+        let pfmea = Self::build_pfmea();
+
+        info!("🏭 PLANTA CALIDAD INDUSTRIAL iniciada | Blueprint: {} | Estaciones: {}",
+            blueprint.revision, stations.len());
+        info!("🏭 PPM Objetivo: Neuronas <{:.0} | Sinapsis <{:.0}",
+            blueprint.target_ppm_neurons, blueprint.target_ppm_synapses);
+
+        Self { blueprint, stations, pfmea, ppm_history: Vec::new(), cumulative_stations: cumulative }
+    }
+
+    fn build_pfmea() -> Vec<PFMEAEntry> {
+        vec![
+            PFMEAEntry {
+                station: StationId::AddNeuron,
+                failure_mode: "Neurona sin ruta input→output (circuito abierto)".to_string(),
+                severity: 8, occurrence: 4, detection: 3,
+            },
+            PFMEAEntry {
+                station: StationId::AddNeuron,
+                failure_mode: "Neurona muerta al nacer (sin conexiones funcionales)".to_string(),
+                severity: 7, occurrence: 5, detection: 2,
+            },
+            PFMEAEntry {
+                station: StationId::AddSynapse,
+                failure_mode: "Sinapsis a neurona muerta (circuito hacia pueblo fantasma)".to_string(),
+                severity: 6, occurrence: 3, detection: 2,
+            },
+            PFMEAEntry {
+                station: StationId::AddSynapse,
+                failure_mode: "Sinapsis a neurona saturada (JIT: demanda llena)".to_string(),
+                severity: 5, occurrence: 4, detection: 1,
+            },
+            PFMEAEntry {
+                station: StationId::MutateWeight,
+                failure_mode: "Peso fuera de tolerancia funcional".to_string(),
+                severity: 4, occurrence: 3, detection: 2,
+            },
+            PFMEAEntry {
+                station: StationId::Crossover,
+                failure_mode: "Herencia de sinapsis a neurona inexistente en hijo".to_string(),
+                severity: 7, occurrence: 2, detection: 1,
+            },
+            PFMEAEntry {
+                station: StationId::Crossover,
+                failure_mode: "Herencia de sinapsis débil del padre inferior".to_string(),
+                severity: 3, occurrence: 6, detection: 4,
+            },
+        ]
+    }
+
+    pub fn gate_add_neuron(
+        &mut self,
+        genome_neuron_count: usize,
+        synapse_source: usize,
+        synapse_target: usize,
+        has_path_from_input: bool,
+        has_path_to_output: bool,
+    ) -> QualityVerdict {
+        let key = StationId::AddNeuron.to_string();
+
+        if genome_neuron_count >= self.blueprint.max_neurons {
+            self.stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            self.cumulative_stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            return QualityVerdict::Reject;
+        }
+
+        if !has_path_from_input || !has_path_to_output {
+            self.stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            self.cumulative_stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            return QualityVerdict::Reject;
+        }
+
+        self.stations.get_mut(&key).unwrap().record(QualityVerdict::Pass);
+        self.cumulative_stations.get_mut(&key).unwrap().record(QualityVerdict::Pass);
+        QualityVerdict::Pass
+    }
+
+    pub fn gate_add_synapse(
+        &mut self,
+        src: usize,
+        tgt: usize,
+        dead_ids: &[usize],
+        saturated_ids: &[usize],
+        existing_count: usize,
+        neuron_count: usize,
+        incoming_count_tgt: usize,
+        outgoing_count_src: usize,
+    ) -> QualityVerdict {
+        let key = StationId::AddSynapse.to_string();
+
+        if src == tgt || src >= neuron_count || tgt >= neuron_count {
+            self.stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            self.cumulative_stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            return QualityVerdict::Reject;
+        }
+
+        if dead_ids.contains(&src) || dead_ids.contains(&tgt) {
+            self.stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            self.cumulative_stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            return QualityVerdict::Reject;
+        }
+
+        if saturated_ids.contains(&tgt) {
+            self.stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            self.cumulative_stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            return QualityVerdict::Reject;
+        }
+
+        if existing_count >= self.blueprint.synapse_spec.max_total {
+            self.stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            self.cumulative_stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            return QualityVerdict::Reject;
+        }
+
+        if incoming_count_tgt >= self.blueprint.synapse_spec.max_per_neuron_in {
+            self.stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            self.cumulative_stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            return QualityVerdict::Reject;
+        }
+
+        if outgoing_count_src >= self.blueprint.synapse_spec.max_per_neuron_out {
+            self.stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            self.cumulative_stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            return QualityVerdict::Reject;
+        }
+
+        self.stations.get_mut(&key).unwrap().record(QualityVerdict::Pass);
+        self.cumulative_stations.get_mut(&key).unwrap().record(QualityVerdict::Pass);
+        QualityVerdict::Pass
+    }
+
+    pub fn gate_mutate_weight(&mut self, current_weight: f32, new_weight: f32) -> (QualityVerdict, f32) {
+        let key = StationId::MutateWeight.to_string();
+
+        let tol_min = self.blueprint.synapse_spec.weight_tolerance_min;
+        let tol_max = self.blueprint.synapse_spec.weight_tolerance_max;
+
+        if new_weight >= tol_min && new_weight <= tol_max {
+            self.stations.get_mut(&key).unwrap().record(QualityVerdict::Pass);
+            self.cumulative_stations.get_mut(&key).unwrap().record(QualityVerdict::Pass);
+            (QualityVerdict::Pass, new_weight)
+        } else {
+            let clamped = new_weight.clamp(tol_min, tol_max);
+            self.stations.get_mut(&key).unwrap().record(QualityVerdict::Clamp);
+            self.cumulative_stations.get_mut(&key).unwrap().record(QualityVerdict::Clamp);
+            (QualityVerdict::Clamp, clamped)
+        }
+    }
+
+    pub fn gate_crossover_synapse(
+        &mut self,
+        weight: f32,
+        src: usize,
+        tgt: usize,
+        child_neuron_count: usize,
+    ) -> QualityVerdict {
+        let key = StationId::Crossover.to_string();
+
+        if src >= child_neuron_count || tgt >= child_neuron_count {
+            self.stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            self.cumulative_stations.get_mut(&key).unwrap().record(QualityVerdict::Reject);
+            return QualityVerdict::Reject;
+        }
+
+        self.stations.get_mut(&key).unwrap().record(QualityVerdict::Pass);
+        self.cumulative_stations.get_mut(&key).unwrap().record(QualityVerdict::Pass);
+        QualityVerdict::Pass
+    }
+
+    pub fn record_station_op(&mut self, station: StationId, verdict: QualityVerdict) {
+        let key = station.to_string();
+        if let Some(rec) = self.stations.get_mut(&key) {
+            rec.record(verdict);
+        }
+        if let Some(rec) = self.cumulative_stations.get_mut(&key) {
+            rec.record(verdict);
+        }
+    }
+
+    pub fn calculate_generation_ppm(
+        &mut self,
+        generation: usize,
+        total_neurons: usize,
+        dead_neurons: usize,
+        dead_ids: &[usize],
+        total_synapses: usize,
+        synapses: &[(usize, usize, f32, bool)],
+        saturated_ids: &[usize],
+    ) -> GenerationPPM {
+        let ppm_neurons = if total_neurons > 0 {
+            (dead_neurons as f64 / total_neurons as f64) * 1_000_000.0
+        } else { 0.0 };
+
+        let waste_to_dead: usize = synapses.iter()
+            .filter(|(s, t, _, en)| *en && (dead_ids.contains(s) || dead_ids.contains(t)))
+            .count();
+        let waste_weak: usize = synapses.iter()
+            .filter(|(_, _, w, en)| *en && w.abs() < WEAK_SYNAPSE_THRESHOLD)
+            .count();
+        let redundant: usize = synapses.iter()
+            .filter(|(s, t, _, en)| *en
+                && !dead_ids.contains(s) && !dead_ids.contains(t)
+                && saturated_ids.contains(t))
+            .count();
+
+        let waste_total = waste_to_dead + waste_weak;
+        let enabled_total: usize = synapses.iter().filter(|(_, _, _, en)| *en).count();
+        let useful = enabled_total.saturating_sub(waste_to_dead + redundant);
+
+        let ppm_synapses = if total_synapses > 0 {
+            (waste_total as f64 / total_synapses as f64) * 1_000_000.0
+        } else { 0.0 };
+
+        let mut ppm_by_station = HashMap::new();
+        for (key, rec) in &self.stations {
+            ppm_by_station.insert(key.clone(), rec.ppm());
+        }
+
+        let gen_ppm = GenerationPPM {
+            generation,
+            ppm_neurons_dead: ppm_neurons,
+            ppm_synapses_waste: ppm_synapses,
+            ppm_by_station,
+            total_neurons,
+            dead_neurons,
+            total_synapses,
+            waste_synapses: waste_total,
+            useful_synapses: useful,
+        };
+
+        self.ppm_history.push(gen_ppm.clone());
+
+        for (_, rec) in &mut self.stations {
+            rec.reset_generation();
+        }
+
+        gen_ppm
+    }
+
+    pub fn audit_report(&self, generation: usize, ppm: &GenerationPPM) {
+        info!("╔══════════════════════════════════════════════════════╗");
+        info!("║  🏭 AUDITORÍA DE CALIDAD INDUSTRIAL — Gen {:>4}     ║", generation);
+        info!("║  Blueprint: {:<40} ║", self.blueprint.revision);
+        info!("╠══════════════════════════════════════════════════════╣");
+
+        let neuron_status = if ppm.ppm_neurons_dead <= self.blueprint.target_ppm_neurons {
+            "✅ CONFORME"
+        } else {
+            "⚠️  FUERA OBJETIVO"
+        };
+        let synapse_status = if ppm.ppm_synapses_waste <= self.blueprint.target_ppm_synapses {
+            "✅ CONFORME"
+        } else {
+            "⚠️  FUERA OBJETIVO"
+        };
+
+        info!("║  PPM Neuronas:  {:>10.0} (obj: <{:.0}) {}",
+            ppm.ppm_neurons_dead, self.blueprint.target_ppm_neurons, neuron_status);
+        info!("║  PPM Sinapsis:  {:>10.0} (obj: <{:.0}) {}",
+            ppm.ppm_synapses_waste, self.blueprint.target_ppm_synapses, synapse_status);
+        info!("║  Neuronas: {}/{} vivas | Sinapsis: {}/{} útiles",
+            ppm.total_neurons - ppm.dead_neurons, ppm.total_neurons,
+            ppm.useful_synapses, ppm.total_synapses);
+        info!("╠══════════════════════════════════════════════════════╣");
+        info!("║  📋 ESTACIONES DE PRODUCCIÓN (acumulado)            ║");
+
+        for sid in &[
+            StationId::AddNeuron, StationId::AddSynapse,
+            StationId::MutateWeight, StationId::MutateThreshold,
+            StationId::MutateLearning, StationId::RemoveSynapse,
+            StationId::Crossover,
+        ] {
+            let key = sid.to_string();
+            if let Some(rec) = self.cumulative_stations.get(&key) {
+                if rec.total_ops > 0 {
+                    info!("║  {} ops:{} pass:{} rej:{} clamp:{} PPM:{:.0}",
+                        key, rec.total_ops, rec.passed, rec.rejected, rec.clamped, rec.ppm());
+                }
+            }
+        }
+
+        info!("╠══════════════════════════════════════════════════════╣");
+        info!("║  📊 PFMEA — Top Riesgos por RPN                    ║");
+        let mut sorted_pfmea = self.pfmea.clone();
+        sorted_pfmea.sort_by(|a, b| b.rpn().cmp(&a.rpn()));
+        for entry in sorted_pfmea.iter().take(3) {
+            info!("║  RPN:{:>3} [{}] {}",
+                entry.rpn(), entry.station, entry.failure_mode);
+        }
+
+        if self.ppm_history.len() >= 2 {
+            info!("╠══════════════════════════════════════════════════════╣");
+            info!("║  📈 TENDENCIA PPM                                   ║");
+            let recent: Vec<&GenerationPPM> = self.ppm_history.iter().rev().take(5).collect();
+            for p in recent.iter().rev() {
+                let n_arrow = if p.ppm_neurons_dead > self.blueprint.target_ppm_neurons { "▲" } else { "▼" };
+                let s_arrow = if p.ppm_synapses_waste > self.blueprint.target_ppm_synapses { "▲" } else { "▼" };
+                info!("║  Gen {:>4}: Neuronas {:>8.0} {} | Sinapsis {:>8.0} {}",
+                    p.generation, p.ppm_neurons_dead, n_arrow, p.ppm_synapses_waste, s_arrow);
+            }
+        }
+
+        info!("╚══════════════════════════════════════════════════════╝");
+    }
+
+    pub fn generate_coc(
+        &self,
+        generation: usize,
+        fitness: f64,
+        neurons: usize,
+        synapses: usize,
+        ppm: &GenerationPPM,
+    ) -> CertificateOfConformity {
+        let mut notes = Vec::new();
+
+        let grade = if ppm.ppm_neurons_dead <= self.blueprint.target_ppm_neurons
+            && ppm.ppm_synapses_waste <= self.blueprint.target_ppm_synapses {
+            notes.push("PPM dentro de objetivo para neuronas y sinapsis".to_string());
+            "A — Conforme"
+        } else if ppm.ppm_neurons_dead <= self.blueprint.target_ppm_neurons * 2.0 {
+            notes.push("PPM neuronas en rango aceptable con desviación".to_string());
+            "B — Aceptable con desviación"
+        } else {
+            notes.push(format!("PPM neuronas {:.0} excede objetivo {:.0}",
+                ppm.ppm_neurons_dead, self.blueprint.target_ppm_neurons));
+            "C — No conforme, requiere acción correctiva"
+        };
+
+        if fitness >= 1400.0 {
+            notes.push("Fitness máximo alcanzado (1400)".to_string());
+        }
+
+        let approved = grade.starts_with("A") || grade.starts_with("B");
+
+        CertificateOfConformity {
+            revision: self.blueprint.revision.clone(),
+            generation,
+            fitness,
+            neurons,
+            synapses,
+            ppm_neurons: ppm.ppm_neurons_dead,
+            ppm_synapses: ppm.ppm_synapses_waste,
+            dead_neurons: (0..neurons).filter(|i| {
+                ppm.dead_neurons > 0 && *i >= neurons - ppm.dead_neurons
+            }).collect(),
+            useful_synapses: ppm.useful_synapses,
+            quality_grade: grade.to_string(),
+            approved,
+            inspection_notes: notes,
+        }
+    }
+
+    pub fn has_path_from_inputs(
+        neuron_id: usize,
+        synapses: &[(usize, usize, bool)],
+        input_ids: &[usize],
+        neuron_count: usize,
+    ) -> bool {
+        if input_ids.contains(&neuron_id) {
+            return true;
+        }
+        let mut visited = vec![false; neuron_count];
+        let mut stack: Vec<usize> = input_ids.to_vec();
+        while let Some(current) = stack.pop() {
+            if current == neuron_id { return true; }
+            if current >= neuron_count || visited[current] { continue; }
+            visited[current] = true;
+            for (src, tgt, en) in synapses {
+                if *en && *src == current && !visited[*tgt] {
+                    stack.push(*tgt);
+                }
+            }
+        }
+        false
+    }
+
+    pub fn has_path_to_outputs(
+        neuron_id: usize,
+        synapses: &[(usize, usize, bool)],
+        output_ids: &[usize],
+        neuron_count: usize,
+    ) -> bool {
+        if output_ids.contains(&neuron_id) {
+            return true;
+        }
+        let mut visited = vec![false; neuron_count];
+        let mut stack = vec![neuron_id];
+        while let Some(current) = stack.pop() {
+            if output_ids.contains(&current) { return true; }
+            if current >= neuron_count || visited[current] { continue; }
+            visited[current] = true;
+            for (src, tgt, en) in synapses {
+                if *en && *src == current && !visited[*tgt] {
+                    stack.push(*tgt);
+                }
+            }
+        }
+        false
+    }
+}
