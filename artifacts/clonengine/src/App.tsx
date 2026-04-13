@@ -16,7 +16,8 @@ import { HeroCanvas }     from "./canvas/HeroCanvas";
 import { SciCanvas }      from "./canvas/SciCanvas";
 import { BenchBar, Counter, Rv } from "./ui/atoms";
 import { GAMES_DATA }     from "./data/games";
-import { PingMeter }      from "./sections/PingMeter";
+import { PingMeter }         from "./sections/PingMeter";
+import { EngineProfiler }    from "./sections/EngineProfiler";
 
 export default function App() {
   const [scrolled, setScrolled] = useState(false);
@@ -321,6 +322,7 @@ export default function App() {
               </div>
             </Rv>
           </div>
+          <Rv cls="d2"><EngineProfiler /></Rv>
         </div>
       </section>
 
