@@ -55,148 +55,237 @@ function lodR(imp: number): number {
   return 0.7;
 }
 
+// ─── ORBITAL SNN GLOBE — Earth wireframe + SNN satellite nodes ────────────────
+// Visual concept: wireframe Earth, 24 SNN nodes orbiting in 4 rings,
+// connection lines when firing, SpikeForge pipeline fully active.
+interface Sat { oi: number; angle: number; ni: number }
+const GLOBE_ORBITS = [
+  { rMult: 1.68, inc: 0.18, speed: 0.0090, l: true  },  // low equatorial   — orange
+  { rMult: 1.98, inc: 0.62, speed: 0.0070, l: false },  // mid inclination  — cyan
+  { rMult: 2.28, inc: 1.08, speed: 0.0055, l: true  },  // high inclination — orange
+  { rMult: 2.58, inc: 1.38, speed: 0.0042, l: false },  // near-polar       — cyan
+] as const;
+const SATS_PER_RING = 6;
+
 function HeroCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const cv = ref.current; if (!cv) return;
     const cx = cv.getContext("2d")!;
     let W = 0, H = 0, raf = 0;
-    function rs() {
-      if (!cv) return;
-      W = cv.width = cv.offsetWidth;
-      H = cv.height = cv.offsetHeight;
-    }
+    function rs() { if (!cv) return; W = cv.width = cv.offsetWidth; H = cv.height = cv.offsetHeight; }
     rs(); window.addEventListener("resize", rs);
 
-    const N = 302, ns: N[] = [];
-    for (let i = 0; i < N; i++) ns.push({
-      x: Math.random() * W, y: Math.random() * H,
-      vx: (Math.random() - .5) * .22, vy: (Math.random() - .5) * .22,
-      v: -65 + Math.random() * 10, u: -13, f: 0, l: Math.random() > .5,
-    });
+    // ── 302-neuron SNN engine ─────────────────────────────────────────────
+    const N = 302;
+    const snn: N[] = [];
+    for (let i = 0; i < N; i++) snn.push({ x: 0, y: 0, v: -65 + Math.random() * 10, u: -13, f: 0, l: Math.random() > .5 });
     const sy: { a: number; b: number; w: number }[] = [];
     for (let i = 0; i < 700; i++) {
       const a = Math.floor(Math.random() * N), b = Math.floor(Math.random() * N);
       if (a !== b) sy.push({ a, b, w: (Math.random() - .5) * .4 });
     }
 
-    // Stage 3: Vigesimal Base-20 edge buckets — keyed by quantised alpha
-    const oBkt = new Map<number, number[]>();
-    const cBkt = new Map<number, number[]>();
+    // ── 24 satellite nodes across 4 orbital rings ─────────────────────────
+    const sats: Sat[] = [];
+    for (let oi = 0; oi < GLOBE_ORBITS.length; oi++)
+      for (let j = 0; j < SATS_PER_RING; j++)
+        sats.push({ oi, angle: (j / SATS_PER_RING) * Math.PI * 2, ni: oi * SATS_PER_RING + j });
 
-    // Stage 1 cache: Pascal importance per neuron — recomputed on Theta tick
+    // ── Theta scheduler state ─────────────────────────────────────────────
     const pw = new Float32Array(N);
-    // Stage 4: Theta scheduler
     let thetaPhase = 0;
-
-    // Initialise weights before first draw
-    function thetaRecompute() {
-      for (let i = 0; i < N; i++) pw[i] = pascalImp(ns[i].x, ns[i].y, W, H);
-    }
+    function thetaRecompute() { for (let i = 0; i < N; i++) pw[i] = pascalImp(snn[i].x || W * .5, snn[i].y || H * .5, W, H); }
     thetaRecompute();
 
-    let tk = 0, sc = 0;
+    // Globe & Schumann state
+    let globeRot = 0, tk = 0, sc = 0;
+
+    // ── Project 3D orbital point → screen ────────────────────────────────
+    function orbitPt(oi: number, angle: number): { sx: number; sy: number; depth: number } {
+      const o = GLOBE_ORBITS[oi];
+      const GR = Math.min(W, H) * 0.20;
+      const r = GR * o.rMult;
+      const GX = W * 0.60, GY = H * 0.46;
+      const ox = r * Math.cos(angle);
+      const oy = r * Math.sin(angle) * Math.cos(o.inc);
+      const oz = r * Math.sin(angle) * Math.sin(o.inc);
+      const rx = ox * Math.cos(globeRot) - oz * Math.sin(globeRot);
+      const rz = ox * Math.sin(globeRot) + oz * Math.cos(globeRot);
+      return { sx: GX + rx, sy: GY - oy, depth: rz / r };
+    }
+
+    // ── Project 3D sphere point → screen ─────────────────────────────────
+    function spherePt(lat: number, lon: number): { sx: number; sy: number; depth: number } {
+      const GR = Math.min(W, H) * 0.20;
+      const GX = W * 0.60, GY = H * 0.46;
+      const x3 = GR * Math.cos(lat) * Math.cos(lon + globeRot);
+      const y3 = GR * Math.sin(lat);
+      const z3 = GR * Math.cos(lat) * Math.sin(lon + globeRot);
+      return { sx: GX + x3, sy: GY - y3, depth: z3 / GR };
+    }
+
+    // Reusable edge buckets (SpikeForge batch renderer)
+    const oBkt = new Map<number, number[]>();
+    const cBkt = new Map<number, number[]>();
 
     function draw(ts: number) {
       raf = requestAnimationFrame(draw);
       if (document.hidden) return;
 
-      cx.fillStyle = "rgba(2,12,24,.14)"; cx.fillRect(0, 0, W, H);
+      cx.fillStyle = "rgba(2,12,24,.13)"; cx.fillRect(0, 0, W, H);
       tk++;
 
-      // ── Stage 4: Schumann sync (7.83 Hz) ──────────────────────────────────
+      // Stage 4: Schumann (7.83Hz) + Theta scheduler (6Hz)
       sc += 7.83 / 60;
       const sf = sc >= 1; if (sf) sc -= 1;
-
-      // ── Stage 4: Theta scheduler (6 Hz) — heavy ops decoupled from Gamma ──
       thetaPhase++;
-      if (thetaPhase >= THETA_PERIOD) {
-        thetaPhase = 0;
-        thetaRecompute(); // Pascal weights refreshed at 6Hz, not 60Hz
-      }
+      if (thetaPhase >= THETA_PERIOD) { thetaPhase = 0; thetaRecompute(); }
 
-      // ── SNN step (Gamma 60Hz) ──────────────────────────────────────────────
+      // Globe rotation (slow, continuous)
+      globeRot += 0.0028;
+
+      // ── SNN step ──────────────────────────────────────────────────────────
       const inp = new Float32Array(N);
-      for (let i = 0; i < sy.length; i++) {
-        const s = sy[i];
-        if (ns[s.a].f > 0) inp[s.b] += s.w * 9;
-      }
+      for (let i = 0; i < sy.length; i++) { const s = sy[i]; if (snn[s.a].f > 0) inp[s.b] += s.w * 9; }
       for (let i = 0; i < N; i++) {
-        const n = ns[i];
+        const n = snn[i];
         const I = inp[i] + (Math.random() - .3) * 4 + (i % 53 === tk % 53 ? 4 : 0);
-        // Stage 2: SpikeForge early-exit for deeply-resting neurons (synaptic pruning)
-        if (n.f === 0 && n.v < -62 && Math.abs(I) < 1.5) {
-          n.v += .04 * n.v * n.v * .002 + I * .04;
-        } else {
-          izhi(n, I);
+        if (n.f === 0 && n.v < -62 && Math.abs(I) < 1.5) { n.v += .04 * n.v * n.v * .002 + I * .04; }
+        else { izhi(n, I); }
+      }
+
+      // ── Advance satellite angles ───────────────────────────────────────────
+      for (let si = 0; si < sats.length; si++) sats[si].angle += GLOBE_ORBITS[sats[si].oi].speed;
+
+      const GR = Math.min(W, H) * 0.20;
+      const GX = W * 0.60, GY = H * 0.46;
+      const STEPS = 64;
+
+      // ── Draw globe wireframe — front/back depth split ──────────────────────
+      cx.lineWidth = 0.5;
+      // Latitude rings (5 lines)
+      for (const lat of [-1.05, -0.52, 0, 0.52, 1.05]) {
+        const front: number[] = [], back: number[] = [];
+        for (let j = 0; j <= STEPS; j++) {
+          const lon = (j / STEPS) * Math.PI * 2;
+          const p = spherePt(lat, lon);
+          const arr = p.depth >= 0 ? front : back;
+          if (arr.length === 0 || (p.depth >= 0) !== (back.length === 0 && front.length > 0)) arr.push(p.sx, p.sy);
+          else arr.push(p.sx, p.sy);
         }
-        n.x += n.vx!; n.y += n.vy!;
-        if (n.x < 0) n.x = W; else if (n.x > W) n.x = 0;
-        if (n.y < 0) n.y = H; else if (n.y > H) n.y = 0;
+        // Front half
+        cx.strokeStyle = "rgba(0,212,255,0.13)";
+        cx.beginPath();
+        for (let j = 0; j <= STEPS; j++) {
+          const p = spherePt(lat, (j / STEPS) * Math.PI * 2);
+          if (p.depth >= 0) { if (j === 0 || spherePt(lat, ((j-1)/STEPS)*Math.PI*2).depth < 0) cx.moveTo(p.sx, p.sy); else cx.lineTo(p.sx, p.sy); }
+        }
+        cx.stroke();
+        // Back half (dimmer)
+        cx.strokeStyle = "rgba(0,212,255,0.035)";
+        cx.beginPath();
+        for (let j = 0; j <= STEPS; j++) {
+          const p = spherePt(lat, (j / STEPS) * Math.PI * 2);
+          if (p.depth < 0) { if (j === 0 || spherePt(lat, ((j-1)/STEPS)*Math.PI*2).depth >= 0) cx.moveTo(p.sx, p.sy); else cx.lineTo(p.sx, p.sy); }
+        }
+        cx.stroke();
+      }
+      // Longitude meridians (8 lines)
+      for (let li = 0; li < 8; li++) {
+        const lon0 = (li / 8) * Math.PI * 2;
+        cx.strokeStyle = "rgba(0,212,255,0.10)";
+        cx.beginPath();
+        for (let j = 0; j <= STEPS; j++) {
+          const lat = -Math.PI / 2 + (j / STEPS) * Math.PI;
+          const p = spherePt(lat, lon0);
+          if (p.depth >= 0) { if (j === 0 || spherePt(-Math.PI/2 + ((j-1)/STEPS)*Math.PI, lon0).depth < 0) cx.moveTo(p.sx, p.sy); else cx.lineTo(p.sx, p.sy); }
+        }
+        cx.stroke();
+        cx.strokeStyle = "rgba(0,212,255,0.030)";
+        cx.beginPath();
+        for (let j = 0; j <= STEPS; j++) {
+          const lat = -Math.PI / 2 + (j / STEPS) * Math.PI;
+          const p = spherePt(lat, lon0);
+          if (p.depth < 0) { if (j === 0 || spherePt(-Math.PI/2 + ((j-1)/STEPS)*Math.PI, lon0).depth >= 0) cx.moveTo(p.sx, p.sy); else cx.lineTo(p.sx, p.sy); }
+        }
+        cx.stroke();
       }
 
-      // ── Stage 1+3: Pascal-gated Vigesimal batch edge renderer ─────────────
+      // ── Draw orbital rings (Stage 3: Vigesimal opacity) ────────────────────
+      for (let oi = 0; oi < GLOBE_ORBITS.length; oi++) {
+        const o = GLOBE_ORBITS[oi];
+        const col = o.l ? "255,122,26" : "0,212,255";
+        cx.strokeStyle = `rgba(${col},0.055)`; cx.lineWidth = 0.4;
+        cx.beginPath();
+        for (let j = 0; j <= STEPS; j++) {
+          const p = orbitPt(oi, (j / STEPS) * Math.PI * 2);
+          if (j === 0) cx.moveTo(p.sx, p.sy); else cx.lineTo(p.sx, p.sy);
+        }
+        cx.stroke();
+      }
+
+      // ── Build SpikeForge edge batches for satellite connections ────────────
       oBkt.clear(); cBkt.clear();
-      for (let i = 0; i < sy.length; i++) {
-        const s = sy[i], f = ns[s.a].f;
-        if (!f) continue;
-        // Stage 1: Pascal importance gate — edges from low-importance neurons discarded
-        const imp = pw[s.a];
-        if (imp < PASCAL_CULL) continue;
-        // Stage 3: Vigesimal Base-20 alpha quantisation
-        let alpha = Math.round((.05 + f / 12 * .18) * 20) / 20;
-        // §10: Bilateral coupling — cross-hemisphere gap junction factor 0.30
-        if (ns[s.a].l !== ns[s.b].l) alpha *= BILATERAL_K;
-        alpha = Math.round(alpha * 20) / 20; // re-quantise after coupling
-        if (alpha < 0.04) continue;
-        const bkt = ns[s.a].l ? oBkt : cBkt;
-        let arr = bkt.get(alpha);
-        if (!arr) { arr = []; bkt.set(alpha, arr); }
-        arr.push(ns[s.a].x, ns[s.a].y, ns[s.b].x, ns[s.b].y);
-      }
-      cx.lineWidth = .5;
-      oBkt.forEach((segs, alpha) => {
-        cx.strokeStyle = `rgba(255,122,26,${alpha})`;
-        cx.beginPath();
-        for (let i = 0; i < segs.length; i += 4) { cx.moveTo(segs[i], segs[i+1]); cx.lineTo(segs[i+2], segs[i+3]); }
-        cx.stroke();
-      });
-      cBkt.forEach((segs, alpha) => {
-        cx.strokeStyle = `rgba(0,212,255,${alpha})`;
-        cx.beginPath();
-        for (let i = 0; i < segs.length; i += 4) { cx.moveTo(segs[i], segs[i+1]); cx.lineTo(segs[i+2], segs[i+3]); }
-        cx.stroke();
-      });
+      for (let si = 0; si < sats.length; si++) {
+        const ni = sats[si].ni;
+        if (!snn[ni].f) continue;
+        const pa = orbitPt(sats[si].oi, sats[si].angle);
+        const col = GLOBE_ORBITS[sats[si].oi].l;
 
-      // ── Stage 1+2: Pascal-gated LOD node renderer ─────────────────────────
-      cx.shadowBlur = 0; cx.shadowColor = "transparent";
-      const active: N[] = [];
-      for (let i = 0; i < N; i++) {
-        const n = ns[i];
-        if (n.f > 0) { active.push(n); continue; }
-        // Stage 1: Pascal importance gate
-        const imp = pw[i];
-        if (imp < PASCAL_CULL) continue;
-        const op = .07 + Math.max(0, (n.v + 65) / 75) * .28;
-        if (op < 0.048) continue;
-        cx.fillStyle = `rgba(${n.l ? "255,122,26" : "0,212,255"},${op.toFixed(2)})`;
-        // Stage 2: Synaptic LOD — node radius by importance tier
-        cx.beginPath(); cx.arc(n.x, n.y, lodR(imp), 0, Math.PI * 2); cx.fill();
-      }
-      for (let i = 0; i < active.length; i++) {
-        const n = active[i];
-        cx.shadowColor = n.l ? "#ff7a1a" : "#00d4ff";
-        cx.shadowBlur = 14;
-        cx.fillStyle = n.l ? "#ff7a1a" : "#00d4ff";
-        cx.beginPath(); cx.arc(n.x, n.y, 3.5, 0, Math.PI * 2); cx.fill();
-      }
-      cx.shadowBlur = 0; cx.shadowColor = "transparent";
+        // Line to globe surface — find surface intercept
+        const dx = GX - pa.sx, dy = GY - pa.sy, d = Math.hypot(dx, dy);
+        const gsx = pa.sx + dx * (1 - GR / d), gsy = pa.sy + dy * (1 - GR / d);
+        let alpha = Math.round((.08 + snn[ni].f / 12 * .14) * 20) / 20; // Vigesimal
+        const bkt1 = col ? oBkt : cBkt;
+        let arr1 = bkt1.get(alpha); if (!arr1) { arr1 = []; bkt1.set(alpha, arr1); }
+        arr1.push(pa.sx, pa.sy, gsx, gsy);
 
-      // Stage 4: Schumann pulse ring (7.83 Hz) — amber
+        // Lines to other firing satellites
+        for (let sj = si + 1; sj < sats.length; sj++) {
+          if (!snn[sats[sj].ni].f) continue;
+          const pb = orbitPt(sats[sj].oi, sats[sj].angle);
+          if (Math.hypot(pb.sx - pa.sx, pb.sy - pa.sy) > GR * 3.8) continue;
+          const isBilateral = GLOBE_ORBITS[sats[si].oi].l !== GLOBE_ORBITS[sats[sj].oi].l;
+          let ea = Math.round((.07 + snn[ni].f / 12 * .11) * 20) / 20;
+          if (isBilateral) ea = Math.round(ea * BILATERAL_K * 20) / 20;
+          if (ea < 0.04) continue;
+          const bkt2 = col ? oBkt : cBkt;
+          let arr2 = bkt2.get(ea); if (!arr2) { arr2 = []; bkt2.set(ea, arr2); }
+          arr2.push(pa.sx, pa.sy, pb.sx, pb.sy);
+        }
+      }
+      cx.lineWidth = 0.7;
+      oBkt.forEach((segs, a) => { cx.strokeStyle = `rgba(255,122,26,${a})`; cx.beginPath(); for (let i = 0; i < segs.length; i += 4) { cx.moveTo(segs[i], segs[i+1]); cx.lineTo(segs[i+2], segs[i+3]); } cx.stroke(); });
+      cBkt.forEach((segs, a) => { cx.strokeStyle = `rgba(0,212,255,${a})`; cx.beginPath(); for (let i = 0; i < segs.length; i += 4) { cx.moveTo(segs[i], segs[i+1]); cx.lineTo(segs[i+2], segs[i+3]); } cx.stroke(); });
+
+      // ── Draw satellite nodes (Stage 1 LOD by orbit depth) ──────────────────
+      cx.shadowBlur = 0;
+      for (let si = 0; si < sats.length; si++) {
+        const ni = sats[si].ni;
+        const p = orbitPt(sats[si].oi, sats[si].angle);
+        const col = GLOBE_ORBITS[sats[si].oi].l;
+        const hexCol = col ? "#ff7a1a" : "#00d4ff";
+        const rgbCol = col ? "255,122,26" : "0,212,255";
+        if (snn[ni].f > 0) {
+          cx.shadowColor = hexCol; cx.shadowBlur = 10;
+          cx.fillStyle = hexCol;
+          cx.beginPath(); cx.arc(p.sx, p.sy, 2.8, 0, Math.PI * 2); cx.fill();
+          cx.shadowBlur = 0;
+        } else {
+          // LOD: depth affects visibility (front of orbit = slightly bigger)
+          const depthR = 1.4 + p.depth * 0.6; // 0.8..2.0
+          const op = .12 + Math.max(0, (snn[ni].v + 65) / 75) * .22;
+          cx.fillStyle = `rgba(${rgbCol},${op.toFixed(2)})`;
+          cx.beginPath(); cx.arc(p.sx, p.sy, depthR, 0, Math.PI * 2); cx.fill();
+        }
+      }
+
+      // ── Stage 4: Schumann pulse ring from globe center ──────────────────────
       if (sf) {
-        cx.strokeStyle = "rgba(255,195,0,.12)"; cx.lineWidth = 1;
+        cx.strokeStyle = "rgba(255,195,0,.10)"; cx.lineWidth = 1; cx.shadowBlur = 0;
         cx.beginPath();
-        cx.arc(W * .62, H * .4, (ts % 1000 / 1000) * Math.max(W, H) * .35, 0, Math.PI * 2);
+        cx.arc(GX, GY, GR + (ts % 1000 / 1000) * Math.min(W, H) * 0.32, 0, Math.PI * 2);
         cx.stroke();
       }
     }
