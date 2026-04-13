@@ -576,3 +576,59 @@ footer{border-top:1px solid var(--border);padding:64px 0 32px}
 .priv-footer{font-family:var(--f-mono);font-size:10px;color:var(--dim);padding:16px;background:rgba(255,255,255,.02);border-radius:4px;margin-top:28px;line-height:1.6;letter-spacing:.04em}
 
 @keyframes fadeIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+
+/* ─── CRYPTO PAY MODAL ───────────────────────────────────────────────────── */
+.cpay-card{background:var(--card);border:1px solid rgba(192,132,252,.25);border-radius:8px;max-width:720px;width:100%;max-height:90vh;overflow-y:auto;position:relative;padding:36px 36px 28px;box-shadow:0 40px 120px rgba(0,0,0,.7);animation:fadeIn .18s ease}
+.cpay-head{display:flex;align-items:center;gap:16px;margin-bottom:24px}
+.cpay-icon{font-size:28px;color:#c084fc;flex-shrink:0;line-height:1}
+.cpay-title{font-family:var(--f-display);font-size:22px;font-weight:700;color:var(--text);margin:0 0 4px}
+.cpay-sub{font-family:var(--f-body);font-size:13px;color:var(--muted)}
+.cpay-tabs{display:flex;gap:8px;margin-bottom:24px}
+.cpay-tab{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;color:var(--muted);background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:4px;padding:8px 16px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s}
+.cpay-tab.active{color:var(--text);border-color:rgba(192,132,252,.4);background:rgba(192,132,252,.08)}
+.cpay-tab:hover:not(.active){border-color:rgba(200,223,240,.18);color:var(--text)}
+.cpay-body{display:grid;grid-template-columns:170px 1fr;gap:24px;align-items:start}
+.cpay-qr-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:6px}
+.cpay-qrlbl{font-family:var(--f-mono);font-size:8px;color:var(--dim);text-align:center;letter-spacing:.08em}
+.cpay-right{display:flex;flex-direction:column;gap:14px}
+.cpay-addr-block{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:4px;padding:12px}
+.cpay-addr-lbl{font-family:var(--f-mono);font-size:8px;letter-spacing:.12em;color:var(--muted);margin-bottom:6px}
+.cpay-addr-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.cpay-addr{font-family:var(--f-mono);font-size:13px;font-weight:700;color:var(--text);background:none;border:none;padding:0}
+.cpay-addr-full{font-family:var(--f-mono);font-size:9px;color:var(--dim);word-break:break-all;line-height:1.5}
+.cpay-copy{font-family:var(--f-mono);font-size:9px;color:var(--cyan);background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.2);border-radius:3px;padding:3px 8px;cursor:pointer;flex-shrink:0;transition:all .2s}
+.cpay-copy:hover{background:rgba(0,212,255,.14)}
+.cpay-amount-block{background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.cpay-amount-row{display:flex;justify-content:space-between;align-items:center}
+.cpay-amount-lbl{font-family:var(--f-mono);font-size:9px;letter-spacing:.1em;color:var(--muted)}
+.cpay-amount-val{font-family:var(--f-display);font-size:15px;font-weight:700;color:var(--text)}
+.cpay-rate-note{font-family:var(--f-mono);font-size:8px;color:var(--dim);letter-spacing:.06em;border-top:1px solid var(--border);padding-top:6px;margin-top:4px}
+.cpay-connected{display:flex;align-items:center;gap:6px;background:rgba(0,255,148,.06);border:1px solid rgba(0,255,148,.15);border-radius:4px;padding:8px 12px}
+.cpay-conn-dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;box-shadow:0 0 8px var(--green)}
+.cpay-conn-addr{font-family:var(--f-mono);font-size:11px;color:var(--text);flex:1}
+.cpay-conn-lbl{font-family:var(--f-mono);font-size:9px;color:var(--green);letter-spacing:.08em}
+.cpay-err{font-family:var(--f-body);font-size:12px;color:var(--red);background:rgba(255,51,85,.06);border:1px solid rgba(255,51,85,.15);border-radius:4px;padding:8px 12px}
+.cpay-actions{display:flex;flex-direction:column;gap:8px}
+.cpay-btn{font-family:var(--f-display);font-size:12px;font-weight:700;letter-spacing:.08em;padding:12px 20px;border-radius:4px;border:none;cursor:pointer;transition:all .2s}
+.cpay-btn:disabled{opacity:.5;cursor:not-allowed}
+.cpay-btn-sol{background:linear-gradient(135deg,rgba(192,132,252,.2),rgba(139,92,246,.3));color:#c084fc;border:1px solid rgba(192,132,252,.4)}
+.cpay-btn-sol:hover:not(:disabled){background:linear-gradient(135deg,rgba(192,132,252,.3),rgba(139,92,246,.45))}
+.cpay-btn-eth{background:linear-gradient(135deg,rgba(0,212,255,.15),rgba(0,163,196,.25));color:var(--cyan);border:1px solid rgba(0,212,255,.3)}
+.cpay-btn-eth:hover:not(:disabled){background:linear-gradient(135deg,rgba(0,212,255,.25),rgba(0,163,196,.35))}
+.cpay-manual-note{font-family:var(--f-body);font-size:11px;color:var(--dim);line-height:1.6}
+.cpay-success{display:flex;flex-direction:column;align-items:center;gap:14px;padding:24px 0}
+.cpay-success-icon{width:56px;height:56px;border-radius:50%;background:rgba(0,255,148,.1);border:2px solid var(--green);display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--green)}
+.cpay-success-title{font-family:var(--f-display);font-size:22px;font-weight:700;color:var(--green)}
+.cpay-success-sub{font-family:var(--f-body);font-size:13px;color:var(--muted)}
+.cpay-txhash{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:4px;padding:10px 14px}
+.cpay-txlbl{font-family:var(--f-mono);font-size:9px;letter-spacing:.12em;color:var(--muted)}
+.cpay-txval{font-family:var(--f-mono);font-size:12px;color:var(--text);flex:1}
+.cpay-success-note{font-family:var(--f-body);font-size:12px;color:var(--muted);text-align:center;max-width:380px;line-height:1.6}
+.cpay-footer{margin-top:20px;padding-top:16px;border-top:1px solid var(--border);font-family:var(--f-mono);font-size:9px;color:var(--dim);text-align:center;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;letter-spacing:.06em}
+.pbtn-crypto{display:block;font-family:var(--f-mono);font-size:9px;letter-spacing:.1em;text-align:center;padding:8px 16px;border-radius:3px;border:1px solid rgba(192,132,252,.25);color:rgba(192,132,252,.7);background:rgba(192,132,252,.04);cursor:pointer;transition:all .2s;text-decoration:none;margin-top:8px}
+.pbtn-crypto:hover{border-color:rgba(192,132,252,.5);color:#c084fc;background:rgba(192,132,252,.08)}
+@media(max-width:640px){
+  .cpay-card{padding:24px 16px 20px;margin:8px}
+  .cpay-body{grid-template-columns:1fr}
+  .cpay-qr-wrap{display:none}
+}

@@ -20,15 +20,19 @@ import { PingMeter }         from "./sections/PingMeter";
 import { EngineProfiler }    from "./sections/EngineProfiler";
 import { DownloadModal }     from "./components/DownloadModal";
 import { PrivacyModal }      from "./components/PrivacyModal";
+import { CryptoPayModal }    from "./components/CryptoPayModal";
 
 export default function App() {
   const [scrolled, setScrolled] = useState(false);
   const [sciSpk,   setSciSpk]   = useState(0);
-  const [dlOpen,   setDlOpen]   = useState(false);
-  const [privOpen, setPrivOpen] = useState(false);
+  const [dlOpen,    setDlOpen]    = useState(false);
+  const [privOpen,  setPrivOpen]  = useState(false);
+  const [cryptoOpen, setCryptoOpen] = useState(false);
+  const [cryptoPlan, setCryptoPlan] = useState("Pro");
 
   const openDL   = (e: React.MouseEvent) => { e.preventDefault(); setDlOpen(true); };
   const openPriv = (e: React.MouseEvent) => { e.preventDefault(); setPrivOpen(true); };
+  const openCrypto = (plan: string) => (e: React.MouseEvent) => { e.preventDefault(); setCryptoPlan(plan); setCryptoOpen(true); };
 
   useEffect(() => {
     // Custom cursor — orange crosshair
@@ -50,8 +54,9 @@ export default function App() {
 
   return (
     <>
-      <DownloadModal open={dlOpen}   onClose={() => setDlOpen(false)} />
-      <PrivacyModal  open={privOpen} onClose={() => setPrivOpen(false)} />
+      <DownloadModal  open={dlOpen}     onClose={() => setDlOpen(false)} />
+      <PrivacyModal   open={privOpen}   onClose={() => setPrivOpen(false)} />
+      <CryptoPayModal open={cryptoOpen} plan={cryptoPlan} onClose={() => setCryptoOpen(false)} />
 
       {/* ── NAV ──────────────────────────────────────────────────────────── */}
       <nav id="nav" className={scrolled ? "scrolled" : ""}>
@@ -446,6 +451,7 @@ export default function App() {
                 <li><span className="no">—</span><span style={{ opacity: .35 }}>Drosophila 139K engine (Science)</span></li>
               </ul>
               <a href="#" className="pbtn pbtn-m" onClick={openDL}>Start Pro — 14 days free</a>
+              <a href="#" className="pbtn-crypto" onClick={openCrypto("Pro")}>◈ Pay with Crypto (SOL · ETH)</a>
             </Rv>
 
             <Rv cls="pc d2">
@@ -466,6 +472,7 @@ export default function App() {
                 <li><span className="no">—</span><span style={{ opacity: .35 }}>White-label / café dashboard (Enterprise)</span></li>
               </ul>
               <a href="mailto:klonengine@proton.me" className="pbtn" style={{ background: "rgba(155,93,229,.15)", border: "1px solid rgba(155,93,229,.45)", color: "#c084fc", marginTop: 28 }}>Get Drosophila →</a>
+              <a href="#" className="pbtn-crypto" onClick={openCrypto("Drosophila")} style={{ borderColor: "rgba(192,132,252,.35)", color: "rgba(192,132,252,.8)" }}>◈ Pay with Crypto (SOL · ETH)</a>
             </Rv>
 
             <Rv cls="pc d3">
@@ -494,6 +501,7 @@ export default function App() {
                 <li><span className="ok">✓</span><span>Free onboarding call included</span></li>
               </ul>
               <a href="mailto:klonengine@proton.me" className="pbtn pbtn-g">Talk to us →</a>
+              <a href="#" className="pbtn-crypto" onClick={openCrypto("Enterprise")}>◈ Pay with Crypto (SOL · ETH)</a>
             </Rv>
 
           </div>
