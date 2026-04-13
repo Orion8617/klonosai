@@ -238,6 +238,7 @@ export default function App() {
           <a href="#" className="nav-logo"><div className="nlive" />CLONENGINE</a>
           <ul className="nav-links">
             <li><a href="#how">Architecture</a></li>
+            <li><a href="#games">Games</a></li>
             <li><a href="#products">Products</a></li>
             <li><a href="#benchmarks">Benchmarks</a></li>
             <li><a href="#pricing">Pricing</a></li>
@@ -377,6 +378,62 @@ export default function App() {
               <ul className="plist"><li>Snell's Law = Corpus Callosum model</li><li>Pascal Cascade = Gaussian lens = GABA</li><li>Live Schumann 3D EEG vector</li></ul>
             </Rv>
           </div>
+        </div>
+      </section>
+
+      {/* GAMES */}
+      <section id="games">
+        <div className="wrap">
+          <Rv cls="sh">
+            <div className="sb">Compatible Games</div>
+            <h2 className="stitle display">Zero lag.<br /><em>Every game.</em></h2>
+            <p className="ssub">KlonOS intercepts every game packet at the TUN layer before it reaches your ISP and routes it through the fastest Pascal Ring path. The SNN engine learns each game's traffic signature in real time — no config needed.</p>
+          </Rv>
+
+          <div className="games-strip">
+            <div className="gs-badge"><span className="gsbdot" />LIVE · SNN PACKET ROUTING ACTIVE</div>
+            <div className="gs-stats">
+              <div className="gss"><span>Avg Latency Saved</span><b>-44ms</b></div>
+              <div className="gss"><span>Packets Classified</span><b>Ring 2 · UDP</b></div>
+              <div className="gss"><span>Schumann Lock</span><b>7.83Hz ✓</b></div>
+            </div>
+          </div>
+
+          <div className="games-grid">
+            {[
+              { abbr: "FN",  name: "Fortnite",          genre: "Battle Royale",  plat: "PC · Mobile",  lat: "-47ms", ring: "Ring 2 · UDP",   col: "#00c8ff" },
+              { abbr: "VL",  name: "Valorant",           genre: "FPS Tactical",   plat: "PC",           lat: "-38ms", ring: "Ring 2 · UDP",   col: "#ff4655" },
+              { abbr: "FF",  name: "Free Fire",          genre: "Battle Royale",  plat: "Mobile",       lat: "-61ms", ring: "Ring 2 · UDP",   col: "#ff6b35" },
+              { abbr: "ML",  name: "Mobile Legends",     genre: "MOBA",           plat: "Mobile",       lat: "-56ms", ring: "Ring 2 · UDP",   col: "#9b5de5" },
+              { abbr: "PM",  name: "PUBG Mobile",        genre: "Battle Royale",  plat: "Mobile",       lat: "-44ms", ring: "Ring 2 · UDP",   col: "#f5c842" },
+              { abbr: "AL",  name: "Apex Legends",       genre: "FPS · BR",       plat: "PC · Mobile",  lat: "-41ms", ring: "Ring 2 · UDP",   col: "#cd4232" },
+              { abbr: "CS",  name: "CS2",                genre: "FPS Tactical",   plat: "PC",           lat: "-33ms", ring: "Ring 2 · UDP",   col: "#8ecaff" },
+              { abbr: "LoL", name: "League of Legends",  genre: "MOBA",           plat: "PC",           lat: "-29ms", ring: "Ring 2 · UDP",   col: "#c89b3c" },
+              { abbr: "CoD", name: "Call of Duty",       genre: "FPS · BR",       plat: "PC · Mobile",  lat: "-52ms", ring: "Ring 2 · UDP",   col: "#f5a623" },
+              { abbr: "GI",  name: "Genshin Impact",     genre: "Action RPG",     plat: "PC · Mobile",  lat: "-35ms", ring: "Ring 1 · HTTPS", col: "#22d3ee" },
+              { abbr: "MC",  name: "Minecraft",          genre: "Sandbox",        plat: "PC · Mobile",  lat: "-18ms", ring: "Ring 0 · TCP",   col: "#5b8731" },
+              { abbr: "RB",  name: "Roblox",             genre: "Platform",       plat: "PC · Mobile",  lat: "-22ms", ring: "Ring 1 · HTTPS", col: "#e2231a" },
+            ].map(({ abbr, name, genre, plat, lat, ring, col }, i) => (
+              <Rv key={name} cls={`d${(i % 4) + 1} gcard`} style={{ "--gc": col } as React.CSSProperties}>
+                <div className="gcard-top">
+                  <div className="gico" style={{ background: col + "22", border: `1px solid ${col}44`, color: col }}>{abbr}</div>
+                  <div className="glat" style={{ color: col }}>{lat}</div>
+                </div>
+                <div className="gname">{name}</div>
+                <div className="gmeta">{genre} · <span>{plat}</span></div>
+                <div className="gring">{ring}</div>
+                <div className="gbar"><div className="gfill" style={{ width: `${Math.abs(parseInt(lat)) / 70 * 100}%`, background: col }} /></div>
+              </Rv>
+            ))}
+          </div>
+
+          <Rv cls="d2 games-cta">
+            <p className="gcta-note">Works out of the box on Android APK · Chrome Extension · iOS PWA · No configuration required</p>
+            <div className="gcta-btns">
+              <a href="#pricing" className="btn-m">Download KlonOS free →</a>
+              <a href="#products" className="btn-g">View all products ↓</a>
+            </div>
+          </Rv>
         </div>
       </section>
 

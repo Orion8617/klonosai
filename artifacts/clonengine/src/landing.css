@@ -175,6 +175,33 @@ h1.ht{font-size:clamp(52px,6.5vw,86px);margin-bottom:24px}
 .pbtn-g{background:transparent;border:1px solid var(--border);color:var(--muted)}
 .pbtn-g:hover{border-color:var(--green);color:var(--green)}
 
+/* GAMES */
+#games{background:var(--bg2)}
+.games-strip{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px 28px;margin-bottom:48px;flex-wrap:wrap;gap:16px}
+.gs-badge{font-family:'Fira Code',monospace;font-size:10px;letter-spacing:.18em;color:var(--green);display:flex;align-items:center;gap:10px}
+.gsbdot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:glow 1.2s ease-in-out infinite;flex-shrink:0}
+.gs-stats{display:flex;gap:32px}
+.gss{display:flex;flex-direction:column;gap:2px}
+.gss span{font-family:'Fira Code',monospace;font-size:9px;color:var(--muted);letter-spacing:.12em}
+.gss b{font-family:'Unbounded',sans-serif;font-size:14px;font-weight:900;color:var(--green)}
+.games-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:48px}
+.gcard{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;position:relative;overflow:hidden;transition:transform .3s,border-color .3s,box-shadow .3s;cursor:default}
+.gcard::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .3s;background:radial-gradient(ellipse at top left,var(--gc,#00ff94)08,transparent 60%)}
+.gcard:hover{transform:translateY(-5px);border-color:var(--gc,var(--border));box-shadow:0 16px 40px rgba(0,0,0,.4)}
+.gcard:hover::before{opacity:1}
+.gcard-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.gico{width:44px;height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Unbounded',sans-serif;font-size:10px;font-weight:900;letter-spacing:.04em;flex-shrink:0}
+.glat{font-family:'Unbounded',sans-serif;font-size:22px;font-weight:900;line-height:1}
+.gname{font-family:'Unbounded',sans-serif;font-size:13px;font-weight:700;color:var(--text);margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gmeta{font-family:'Fira Code',monospace;font-size:9px;color:var(--muted);letter-spacing:.1em;margin-bottom:10px}
+.gmeta span{color:var(--dim)}
+.gring{font-family:'Fira Code',monospace;font-size:9px;color:var(--cyan);letter-spacing:.12em;margin-bottom:10px;opacity:.7}
+.gbar{height:2px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden}
+.gfill{height:100%;border-radius:2px;transition:width 1.6s cubic-bezier(.4,0,.2,1)}
+.games-cta{text-align:center;padding:48px 0 0}
+.gcta-note{font-family:'Fira Code',monospace;font-size:10px;color:var(--muted);letter-spacing:.12em;margin-bottom:24px}
+.gcta-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
 /* CTA */
 #cta{padding:100px 0;background:var(--bg2);overflow:hidden}
 .ctain{max-width:1160px;margin:0 auto;padding:0 28px;display:flex;flex-direction:column;align-items:center;text-align:center}
@@ -215,6 +242,8 @@ footer{border-top:1px solid var(--border);padding:64px 0 32px}
   .pgrid{grid-template-columns:1fr}
   .fg{grid-template-columns:1fr 1fr}
   .nav-links{display:none}
+  .games-grid{grid-template-columns:repeat(2,1fr)}
+  .gs-stats{gap:20px}
 }
 @media(max-width:600px){
   .pipe{grid-template-columns:1fr}
@@ -222,4 +251,8 @@ footer{border-top:1px solid var(--border);padding:64px 0 32px}
   .fg{grid-template-columns:1fr}
   .hnums{grid-template-columns:1fr 1fr}
   section{padding:80px 0}
+  .games-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .games-strip{flex-direction:column;align-items:flex-start}
+  .gcard{padding:18px}
+  .glat{font-size:18px}
 }
