@@ -156,55 +156,135 @@ function HeroCanvas() {
   return <canvas ref={ref} id="hero-canvas" />;
 }
 
-// ─── SCIENCE CANVAS ───────────────────────────────────────────────────────────
+// ─── SCIENCE CANVAS — SpikeForge batch + pre-computed adjacency + PascalCuller ─
+// Perf wins vs old code:
+//   • O(N²) hypot per frame → O(edges) per frame (adjacency built once in buildGrid)
+//   • save/restore per edge → batched paths by colour bucket
+//   • save/restore per node → manual shadow state, two-pass render
+//   • tab-visibility early return
 function SciCanvas({ onSpk }: { onSpk: (n: number) => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const cv = ref.current; if (!cv) return;
     const cx = cv.getContext("2d")!;
     let W = 0, H = 0, raf = 0;
-    function rs() { W = cv.width = cv.offsetWidth; H = cv.height = cv.offsetHeight; }
+    function rs() {
+      if (!cv) return;
+      W = cv.width = cv.offsetWidth;
+      H = cv.height = cv.offsetHeight;
+    }
     rs(); window.addEventListener("resize", rs);
+
     const cols = 9, rows = 8, dx = 46, dy = 40;
+    const DIST_MAX = dx * 1.65;
     const ns: N[] = [];
+    // Pre-computed neighbour list — [a, b] index pairs within DIST_MAX
+    // Only rebuilt on resize, not every frame (O(N²) → O(1) amortised per frame)
+    let edges: [number, number][] = [];
+
     function buildGrid() {
       const ox = (W - (cols - 1) * dx) / 2, oy = (H - (rows - 1) * dy) / 2;
       ns.length = 0;
-      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) ns.push({ x: ox + c * dx + (r % 2 ? dx / 2 : 0), y: oy + r * dy, v: -65 + (Math.random() - .5) * 15, u: -13, f: 0, l: c < cols / 2 });
+      for (let r = 0; r < rows; r++)
+        for (let c = 0; c < cols; c++)
+          ns.push({ x: ox + c * dx + (r % 2 ? dx / 2 : 0), y: oy + r * dy, v: -65 + (Math.random() - .5) * 15, u: -13, f: 0, l: c < cols / 2 });
+      // Build adjacency once — O(N²) here but only on resize
+      edges = [];
+      for (let a = 0; a < ns.length; a++)
+        for (let b = a + 1; b < ns.length; b++)
+          if (Math.hypot(ns[b].x - ns[a].x, ns[b].y - ns[a].y) <= DIST_MAX)
+            edges.push([a, b]);
     }
     buildGrid(); window.addEventListener("resize", buildGrid);
+
+    // Reusable edge buckets — keyed by quantised alpha, avoids string alloc per edge
+    const oBkt = new Map<number, number[]>(); // orange: [x1,y1,x2,y2,...]
+    const cBkt = new Map<number, number[]>(); // cyan
+
     let tot = 0, tk = 0;
+
     function draw() {
       raf = requestAnimationFrame(draw);
+      if (document.hidden) return; // tab-visibility cull
+
       cx.fillStyle = "rgba(2,12,24,.18)"; cx.fillRect(0, 0, W, H); tk++;
-      ns.forEach((n, i) => { if (izhi(n, (Math.random() - .28) * 12 + (i % 13 === tk % 13 ? 9 : 0))) tot++; });
-      ns.forEach((n, i) => {
-        if (!n.f) return;
-        ns.forEach((m, j) => {
-          if (j === i) return; const d = Math.hypot(m.x - n.x, m.y - n.y);
-          if (d > dx * 1.65) return;
-          const col = n.l ? "255,122,26" : "0,212,255";
-          cx.save(); cx.strokeStyle = `rgba(${col},${.1 + n.f / 12 * .2})`; cx.lineWidth = .6;
-          cx.beginPath(); cx.moveTo(n.x, n.y); cx.lineTo(m.x, m.y); cx.stroke(); cx.restore();
-        });
-      });
-      ns.forEach(n => {
-        const g = n.f > 0, sz = g ? 7 : 4; cx.save();
-        if (g) {
-          cx.shadowColor = n.l ? "#ff7a1a" : "#00d4ff";
-          cx.shadowBlur = 20;
-          cx.fillStyle = n.l ? "#ff7a1a" : "#00d4ff";
+
+      // ── SNN step ──────────────────────────────────────────────────────────
+      for (let i = 0; i < ns.length; i++) {
+        const n = ns[i];
+        const I = (Math.random() - .28) * 12 + (i % 13 === tk % 13 ? 9 : 0);
+        // SpikeForge early-exit for deeply resting neurons
+        if (n.f === 0 && n.v < -62 && Math.abs(I) < 1.2) {
+          n.v += I * .04;
         } else {
-          cx.fillStyle = `rgba(${n.l ? "255,122,26" : "0,212,255"},${.1 + Math.max(0, (n.v + 65) / 75) * .28})`;
+          if (izhi(n, I)) tot++;
         }
+      }
+
+      // ── SpikeForge batch edge renderer ────────────────────────────────────
+      oBkt.clear(); cBkt.clear();
+      for (let e = 0; e < edges.length; e++) {
+        const [a, b] = edges[e];
+        const na = ns[a], nb = ns[b];
+        // draw edge if either endpoint is firing
+        const f = na.f || nb.f; if (!f) continue;
+        const src = na.f >= nb.f ? na : nb; // use the more-fired source for colour/alpha
+        const alpha = Math.round((.1 + src.f / 12 * .2) * 20) / 20;
+        if (alpha < CULL_ALPHA) continue; // PascalCuller
+        const bkt = src.l ? oBkt : cBkt;
+        let arr = bkt.get(alpha);
+        if (!arr) { arr = []; bkt.set(alpha, arr); }
+        arr.push(na.x, na.y, nb.x, nb.y);
+      }
+      cx.lineWidth = .6;
+      oBkt.forEach((segs, alpha) => {
+        cx.strokeStyle = `rgba(255,122,26,${alpha})`;
         cx.beginPath();
-        for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3 - Math.PI / 6; cx.lineTo(n.x + sz * Math.cos(a), n.y + sz * Math.sin(a)); }
-        cx.closePath(); cx.fill(); cx.restore();
+        for (let i = 0; i < segs.length; i += 4) { cx.moveTo(segs[i], segs[i+1]); cx.lineTo(segs[i+2], segs[i+3]); }
+        cx.stroke();
       });
+      cBkt.forEach((segs, alpha) => {
+        cx.strokeStyle = `rgba(0,212,255,${alpha})`;
+        cx.beginPath();
+        for (let i = 0; i < segs.length; i += 4) { cx.moveTo(segs[i], segs[i+1]); cx.lineTo(segs[i+2], segs[i+3]); }
+        cx.stroke();
+      });
+
+      // ── Hexagon node renderer — two-pass, no save/restore in hot loop ─────
+      const active: N[] = [];
+      cx.shadowBlur = 0; cx.shadowColor = "transparent";
+      // Pass 1: inactive hexagons
+      for (let i = 0; i < ns.length; i++) {
+        const n = ns[i];
+        if (n.f > 0) { active.push(n); continue; }
+        const op = .1 + Math.max(0, (n.v + 65) / 75) * .28;
+        if (op < CULL_NODE) continue; // PascalCuller
+        cx.fillStyle = `rgba(${n.l ? "255,122,26" : "0,212,255"},${op.toFixed(2)})`;
+        cx.beginPath();
+        for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3 - Math.PI / 6; cx.lineTo(n.x + 4 * Math.cos(a), n.y + 4 * Math.sin(a)); }
+        cx.closePath(); cx.fill();
+      }
+      // Pass 2: active (glowing) hexagons — typically < 10 at a time
+      for (let i = 0; i < active.length; i++) {
+        const n = active[i];
+        cx.shadowColor = n.l ? "#ff7a1a" : "#00d4ff";
+        cx.shadowBlur = 20;
+        cx.fillStyle = n.l ? "#ff7a1a" : "#00d4ff";
+        cx.beginPath();
+        for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3 - Math.PI / 6; cx.lineTo(n.x + 7 * Math.cos(a), n.y + 7 * Math.sin(a)); }
+        cx.closePath(); cx.fill();
+      }
+      cx.shadowBlur = 0; cx.shadowColor = "transparent";
+
       onSpk(tot);
     }
+
     raf = requestAnimationFrame(draw);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", rs); window.removeEventListener("resize", buildGrid); };
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", rs);
+      window.removeEventListener("resize", buildGrid);
+    };
   }, [onSpk]);
   return <canvas ref={ref} id="sci-canvas" />;
 }
