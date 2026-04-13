@@ -492,25 +492,68 @@ export default function App() {
       {/* VS LEADERBOARD */}
       <div className="vs-strip">
         <div className="vs-header">
-          <span className="vs-label">⚡ LATENCY REDUCTION · COMPETITIVE BENCHMARK</span>
-          <span className="vs-note">avg ms saved vs baseline · Free Fire server LATAM</span>
+          <div className="vs-header-left">
+            <span className="vs-label">⚡ PING KILLER RANKING</span>
+            <span className="vs-note">How many milliseconds each tool removes from your ping · Free Fire LATAM servers</span>
+          </div>
+          <div className="vs-legend">
+            <span className="vs-leg-bar" style={{ background: "linear-gradient(90deg,var(--prime),var(--amber))" }} />
+            <span className="vs-leg-txt">MORE BAR = MORE PING REMOVED = BETTER</span>
+          </div>
+        </div>
+
+        {/* ZeroLag winner card — separate, prominent */}
+        <div className="vs-winner-card">
+          <div className="vs-winner-left">
+            <div className="vs-winner-rank">
+              <span className="vs-crown">👑</span>
+              <span className="vs-rank-num">#1</span>
+            </div>
+            <div className="vs-winner-info">
+              <div className="vs-winner-name">ZeroLag <span className="vs-winner-tag">by KlonOS</span></div>
+              <div className="vs-winner-tech">SNN AI · TUN VPN · Android + iOS + Chrome · FREE</div>
+            </div>
+          </div>
+          <div className="vs-winner-right">
+            <div className="vs-winner-bar-wrap">
+              <div className="vs-winner-bar" />
+              <div className="vs-winner-bar-label">100% — best result</div>
+            </div>
+            <div className="vs-winner-num">
+              <span className="vs-win-big">44</span>
+              <span className="vs-win-unit">ms removed</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Competitors — clearly labelled as "worse" */}
+        <div className="vs-comp-header">
+          <span className="vs-comp-label">COMPETITORS — removing less ping than ZeroLag</span>
         </div>
         <div className="vs-board">
           {([
-            { rank: "★", name: "ZeroLag", ms: 44, tech: "SNN AI · TUN VPN · Android + iOS + Chrome", winner: true },
-            { rank: "2", name: "ExitLag", ms: 28, tech: "Multi-path · PC only", winner: false },
-            { rank: "3", name: "WTFast", ms: 21, tech: "GPN tunnel · No mobile", winner: false },
-            { rank: "4", name: "Mudfish", ms: 18, tech: "Proxy nodes · Complex setup", winner: false },
-            { rank: "5", name: "NoPing", ms: 15, tech: "Manual config · Windows only", winner: false },
-          ] as const).map(({ rank, name, ms, tech, winner }) => (
-            <div key={name} className={`vs-row2 ${winner ? "vs-row-win" : ""}`}>
+            { rank: "2", name: "ExitLag",  ms: 28, tech: "Multi-path · PC only · paid",          pct: 64 },
+            { rank: "3", name: "WTFast",   ms: 21, tech: "GPN tunnel · No mobile · paid",         pct: 48 },
+            { rank: "4", name: "Mudfish",  ms: 18, tech: "Proxy nodes · Complex setup · paid",    pct: 41 },
+            { rank: "5", name: "NoPing",   ms: 15, tech: "Manual config · Windows only · paid",   pct: 34 },
+          ] as const).map(({ rank, name, ms, tech, pct }) => (
+            <div key={name} className="vs-row2">
               <span className="vs-rank">{rank}</span>
               <span className="vs-nm">{name}</span>
-              <div className="vs-bar-wrap"><div className="vs-bar2" style={{ width: `${(ms / 44) * 100}%`, background: winner ? "linear-gradient(90deg,#00ff94,#22d3ee)" : "rgba(255,255,255,.12)" }} /></div>
-              <span className="vs-ms" style={{ color: winner ? "#00ff94" : "rgba(255,255,255,.4)" }}>-{ms}ms</span>
+              <div className="vs-bar-wrap">
+                <div className="vs-bar2" style={{ width: `${pct}%`, background: "rgba(200,223,240,.14)" }} />
+              </div>
+              <div className="vs-ms-wrap">
+                <span className="vs-ms-num">{ms}ms</span>
+                <span className="vs-ms-removed">removed</span>
+              </div>
               <span className="vs-tech2">{tech}</span>
             </div>
           ))}
+        </div>
+
+        <div className="vs-footnote">
+          ✓ ZeroLag removes <strong>44ms</strong> of ping — {Math.round(44/28*100-100)}% more than ExitLag, {Math.round(44/15*100-100)}% more than NoPing. Measured on Free Fire SA servers from São Paulo. Higher = better.
         </div>
       </div>
 
