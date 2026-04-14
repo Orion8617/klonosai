@@ -266,7 +266,7 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
                   activeOpacity={0.8}
                   onPress={() => {
                     const base = getApiBase();
-                    if (typeof window !== "undefined") {
+                    if (Platform.OS === "web" && typeof window !== "undefined" && window.location) {
                       window.location.href = `${base}/sign-in/social?provider=google`;
                     } else {
                       setError("Google login no soportado en este entorno nativo de prueba.");
@@ -282,7 +282,7 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
                   activeOpacity={0.8}
                   onPress={() => {
                     const base = getApiBase();
-                    if (typeof window !== "undefined") {
+                    if (Platform.OS === "web" && typeof window !== "undefined" && window.location) {
                       window.location.href = `${base}/sign-in/social?provider=microsoft`;
                     } else {
                       setError("Microsoft login no soportado en este entorno nativo de prueba.");
@@ -300,7 +300,7 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
                   activeOpacity={0.8}
                   onPress={() => {
                     const base = getApiBase();
-                    if (typeof window !== "undefined") {
+                    if (Platform.OS === "web" && typeof window !== "undefined" && window.location) {
                       window.location.href = `${base}/sign-in/social?provider=github`;
                     } else {
                       setError("GitHub login no soportado en este entorno nativo de prueba.");

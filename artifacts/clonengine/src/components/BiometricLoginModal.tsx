@@ -245,19 +245,19 @@ export function BiometricLoginModal({ open, onClose, onLogin }: Props) {
                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                     <button
                       style={{ background: '#333', border: '1px solid #444', color: 'white', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-                      onClick={() => window.location.href = '/api/auth/sign-in/social?provider=google'}
+                      onClick={() => window.location.href = `${getApiBase()}/sign-in/social?provider=google`}
                     >
                       <span>G</span> Google
                     </button>
                     <button
                       style={{ background: '#333', border: '1px solid #444', color: 'white', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-                      onClick={() => window.location.href = '/api/auth/sign-in/social?provider=microsoft'}
+                      onClick={() => window.location.href = `${getApiBase()}/sign-in/social?provider=microsoft`}
                     >
                       <span>M</span> Microsoft
                     </button>
                     <button
                       style={{ background: '#333', border: '1px solid #444', color: 'white', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-                      onClick={() => window.location.href = '/api/auth/sign-in/social?provider=github'}
+                      onClick={() => window.location.href = `${getApiBase()}/sign-in/social?provider=github`}
                     >
                       <span>🐙</span> GitHub
                     </button>
