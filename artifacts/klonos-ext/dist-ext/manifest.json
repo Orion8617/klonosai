@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "KlonOS Layer 5.0",
+  "name": "ZeroLag — Gaming Network Optimizer",
+  "short_name": "ZeroLag",
   "version": "1.0.0",
-  "description": "Sovereign SNN Housekeeper — Patrulla DOM hexagonal. Juan José Salgado Fuentes.",
+  "description": "Real-time gaming latency optimizer powered by 302-neuron SNN AI. Finds your fastest Azure server automatically. Free Fire, Valorant, PUBG, Fortnite.",
   "icons": {
     "16": "icon16.png",
     "48": "icon48.png",
@@ -15,7 +16,7 @@
       "48": "icon48.png",
       "128": "icon128.png"
     },
-    "default_title": "KlonOS Layer 5.0 — SNN Housekeeper"
+    "default_title": "ZeroLag · SNN Gaming Optimizer"
   },
   "content_scripts": [
     {
@@ -26,7 +27,10 @@
     }
   ],
   "permissions": ["activeTab", "storage"],
-  "host_permissions": ["<all_urls>"],
+  "host_permissions": [
+    "<all_urls>",
+    "https://*.blob.core.windows.net/*"
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   }
