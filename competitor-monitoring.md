@@ -7,7 +7,7 @@ Maintained by: Juan José Salgado Fuentes · klonengine@proton.me
 ## Product Context
 
 **ClonEngine** is a neuromorphic AI engine based on the C. elegans 302N biological connectome,
-running Izhikevich spiking neurons with STDP/R-STDP learning and Schumann resonance phase-lock.
+running Izhikevich spiking neurons with STBP/R-STDP learning and Schumann resonance phase-lock.
 
 **KlonOS Layer 5.0** is the sovereign edge stack: Expo PWA + Android VPN APK + Chrome DOM purge
 extension — all sharing the same SNN constants (VIGESIMAL_WEIGHT=50, SCHUMANN_MS=127ms, GAMMA_BURST_MS=25ms).
