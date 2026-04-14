@@ -95,7 +95,7 @@ router.post("/solana/verify", async (req: Request, res: Response) => {
   const rawMsg = tx.transaction.message;
   const accountKeys: PublicKey[] = "staticAccountKeys" in rawMsg
     ? rawMsg.staticAccountKeys
-    : rawMsg.accountKeys;
+    : (rawMsg as any).accountKeys;
 
   // Validate sender identity to prevent signature reuse across users.
   if (senderAddress) {

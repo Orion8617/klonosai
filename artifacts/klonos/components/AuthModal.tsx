@@ -260,11 +260,70 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
                 <View style={styles.dividerLine} />
               </View>
 
-              {/* Passkey CTA (web-only; native uses device biometric) */}
+              <View style={styles.socialGrid}>
+                <TouchableOpacity
+                  style={styles.socialBtn}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    const base = getApiBase();
+                    if (Platform.OS === "web" && typeof window !== "undefined" && window.location) {
+                      window.location.href = `${base}/sign-in/social?provider=google`;
+                    } else {
+                      setError("Google login no soportado en este entorno nativo de prueba.");
+                    }
+                  }}
+                >
+                  <Text style={styles.socialIcon}>G</Text>
+                  <Text style={styles.socialText}>Google</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.socialBtn}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    const base = getApiBase();
+                    if (Platform.OS === "web" && typeof window !== "undefined" && window.location) {
+                      window.location.href = `${base}/sign-in/social?provider=microsoft`;
+                    } else {
+                      setError("Microsoft login no soportado en este entorno nativo de prueba.");
+                    }
+                  }}
+                >
+                  <Text style={styles.socialIcon}>M</Text>
+                  <Text style={styles.socialText}>Microsoft</Text>
+                </TouchableOpacity>
+              </View>
+              
+              <View style={[styles.socialGrid, { marginTop: 12 }]}>
+                <TouchableOpacity
+                  style={[styles.socialBtn, { flex: 1, marginRight: 0 }]}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    const base = getApiBase();
+                    if (Platform.OS === "web" && typeof window !== "undefined" && window.location) {
+                      window.location.href = `${base}/sign-in/social?provider=github`;
+                    } else {
+                      setError("GitHub login no soportado en este entorno nativo de prueba.");
+                    }
+                  }}
+                >
+                  <Text style={styles.socialIcon}>🐙</Text>
+                  <Text style={styles.socialText}>GitHub</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Divider */}
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>o usar biométricos</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* Passkey CTA */}
               <TouchableOpacity
                 style={styles.passkeyBtn}
                 activeOpacity={0.8}
-                onPress={() => setError("Passkey disponible en la app nativa. Usa email por ahora.")}
+                onPress={() => setError("Passkey disponible en la app nativa o interfaz web completa.")}
               >
                 <Text style={styles.passkeyIcon}>🔑</Text>
                 <Text style={styles.passkeyText}>
@@ -416,6 +475,33 @@ function makeStyles(c: ReturnType<typeof import("@/hooks/useColors").useColors>)
       marginHorizontal: 12,
       color:            c.mutedForeground,
       fontSize:         12,
+    },
+    socialGrid: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    socialBtn: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      paddingVertical: 12,
+      backgroundColor: c.card,
+      marginRight: 10,
+    },
+    socialIcon: {
+      fontSize: 16,
+      marginRight: 8,
+      fontWeight: 'bold',
+      color: c.foreground,
+    },
+    socialText: {
+      color: c.foreground,
+      fontWeight: "600",
+      fontSize: 14,
     },
     passkeyBtn: {
       flexDirection:    "row",

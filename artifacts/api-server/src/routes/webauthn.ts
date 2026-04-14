@@ -16,7 +16,7 @@ import {
   type VerifyRegistrationResponseOpts,
   type VerifyAuthenticationResponseOpts,
 } from "@simplewebauthn/server";
-import type { AuthenticatorTransportFuture } from "@simplewebauthn/types";
+import type { AuthenticatorTransportFuture } from "@simplewebauthn/server";
 import type { Request, Response } from "express";
 
 // ── Config ─────────────────────────────────────────────────────────────────────
@@ -31,14 +31,14 @@ const RP_ORIGIN   = process.env["NODE_ENV"] === "production"
 // ── In-memory stores ──────────────────────────────────────────────────────────
 type StoredCredential = {
   id:           string;
-  publicKey:    Uint8Array;
+  publicKey:    any;
   counter:      number;
   transports:   AuthenticatorTransportFuture[];
   username:     string;
   createdAt:    number;
 };
 
-const usersByName = new Map<string, { id: Uint8Array; username: string }>();
+const usersByName = new Map<string, { id: any; username: string }>();
 const credsByUser = new Map<string, StoredCredential[]>();
 const allCreds    = new Map<string, StoredCredential>();
 
@@ -52,7 +52,7 @@ declare module "express-session" {
   }
 }
 
-function userIdFromName(name: string): Uint8Array {
+function userIdFromName(name: string): any {
   const enc = new TextEncoder();
   return enc.encode(name.slice(0, 64));
 }
@@ -145,7 +145,7 @@ router.post("/register-verify", async (req: Request, res: Response) => {
 
     const stored: StoredCredential = {
       id:         credential.id,
-      publicKey:  credential.publicKey,
+      publicKey:  new Uint8Array(credential.publicKey),
       counter:    credential.counter,
       transports: (req.body.response?.transports as AuthenticatorTransportFuture[]) ?? [],
       username,
@@ -217,7 +217,7 @@ router.post("/login-verify", async (req: Request, res: Response) => {
       expectedOrigin:    RP_ORIGIN ?? req.headers["origin"] as string,
       credential: {
         id:        stored.id,
-        publicKey: stored.publicKey,
+        publicKey: new Uint8Array(stored.publicKey),
         counter:   stored.counter,
         transports: stored.transports,
       },
