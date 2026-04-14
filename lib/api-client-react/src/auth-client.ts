@@ -11,7 +11,7 @@ const API_BASE =
     ? `${window.location.protocol}//${window.location.host}`
     : "http://localhost:3001";
 
-export const authClient = createAuthClient({
+export const authClient: any = createAuthClient({
   baseURL: `${API_BASE}/api/auth`,
   plugins: [passkeyClient()],
 });

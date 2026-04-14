@@ -1,14 +1,36 @@
 // ─── Layer 6: Games Data — original SVG art (no trademarks) ─────────────────
+//
+// Microsoft Affiliate Program — Impact.com
+// Replace YOUR_IMPACT_TAG with your publisher tag from Impact dashboard
+// Commission: 7% Xbox digital games · $1.50 Game Pass Ultimate · $1.30 Game Pass PC
+// Sign up: https://www.microsoft.com/en-us/store/b/affiliates
+
+const MS_TAG = "YOUR_IMPACT_TAG"; // ← replace with your Impact.com publisher tag
+export const msStoreLink = (productId: string) =>
+  `https://www.microsoft.com/store/productId/${productId}?ocid=${MS_TAG}`;
+
+export const XBOX_LINKS = {
+  gamePassUltimate: msStoreLink("CFQ7TTC0KGQ8"), // $1.50 CPA per signup
+  gamePassPC:       msStoreLink("CFQ7TTC0KGQ9"), // $1.30 CPA per signup
+  fortnite:         msStoreLink("9NBLGGH4TGK5"), // Free — drives installs
+  haloInfinite:     msStoreLink("9PP5G1F0C2B6"), // 7% commission
+  forzaHorizon5:    msStoreLink("9NKX70BBCDRN"), // 7% commission
+  seaOfThieves:     msStoreLink("9P8DHNK8BVTF"), // 7% commission
+  cod:              msStoreLink("9NBLGGH537BL"), // 7% commission
+};
 
 export interface GameEntry {
   col: string; name: string; genre: string;
   plat: string; lat: string; ring: string;
+  storeUrl?: string;  // affiliate link
+  commission?: string;
   icon: (c: string) => React.ReactNode;
 }
 
 export const GAMES_DATA: GameEntry[] = [
   {
     col: "#00c8ff", name: "Fortnite", genre: "Battle Royale", plat: "PC · Mobile", lat: "-47ms", ring: "Ring 2 · UDP",
+    storeUrl: XBOX_LINKS.fortnite, commission: "Free",
     icon: (c) => <>
       <polygon points="24,4 36,12 40,26 24,44 8,26 12,12" stroke={c} strokeWidth="2" fill={c+"18"}/>
       <polygon points="24,12 32,18 34,28 24,38 14,28 16,18" stroke={c} strokeWidth="1.2" fill={c+"28"}/>

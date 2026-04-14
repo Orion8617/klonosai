@@ -13,5 +13,9 @@
   },
   "peerDependencies": {
     "react": ">=18"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "zod": "catalog:"
   }
 }

@@ -11,9 +11,16 @@ import {
 } from "@simplewebauthn/browser";
 
 // ── API base — Replit proxy path ──────────────────────────────────────────────
-const API = "/api-server/api/auth/webauthn";
+function getApiBase(): string {
+  if (typeof window !== "undefined") {
+    return `${window.location.protocol}//${window.location.host}/api/auth`;
+  }
+  return "http://localhost:3001/api/auth";
+}
+
+const API = "/webauthn";
 const fetchApi = (path: string, body?: unknown) =>
-  fetch(`${API}${path}`, {
+  fetch(`${getApiBase()}${API}${path}`, {
     method: body !== undefined ? "POST" : "GET",
     headers: body !== undefined ? { "Content-Type": "application/json" } : {},
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -231,6 +238,30 @@ export function BiometricLoginModal({ open, onClose, onLogin }: Props) {
                     <span className="bam-mode-title">Register new passkey</span>
                     <span className="bam-mode-desc">First time? Create your passkey here</span>
                   </button>
+                </div>
+
+                <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '12px', color: '#888' }}>
+                  <div style={{ marginBottom: '12px', borderBottom: '1px solid #333', paddingBottom: '12px' }}>OR CONTINUE WITH</div>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                    <button
+                      style={{ background: '#333', border: '1px solid #444', color: 'white', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                      onClick={() => window.location.href = `${getApiBase()}/sign-in/social?provider=google`}
+                    >
+                      <span>G</span> Google
+                    </button>
+                    <button
+                      style={{ background: '#333', border: '1px solid #444', color: 'white', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                      onClick={() => window.location.href = `${getApiBase()}/sign-in/social?provider=microsoft`}
+                    >
+                      <span>M</span> Microsoft
+                    </button>
+                    <button
+                      style={{ background: '#333', border: '1px solid #444', color: 'white', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                      onClick={() => window.location.href = `${getApiBase()}/sign-in/social?provider=github`}
+                    >
+                      <span>🐙</span> GitHub
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
