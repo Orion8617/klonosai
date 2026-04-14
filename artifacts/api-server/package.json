@@ -10,6 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@azure/ai-projects": "^2.0.2",
+    "@azure/identity": "^4.13.1",
     "@better-auth/passkey": "^1.6.2",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/semantic-conventions": "^1.40.0",
