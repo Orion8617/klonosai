@@ -35,9 +35,24 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Create resource group if not exists
+        run: |
+          az group create \
+            --name klonosai-rg \
+            --location eastus \
+            --output none || true
+
       - name: Deploy to Container Apps
         run: |
           az extension add --name containerapp --upgrade -y
+
+          # Create Container Apps environment if not exists
+          az containerapp env create \
+            --name klonosai-env \
+            --resource-group klonosai-rg \
+            --location eastus \
+            --output none 2>/dev/null || true
+
           az containerapp up \
             --name klonosai-api \
             --resource-group klonosai-rg \
@@ -48,4 +63,5 @@ jobs:
             --env-vars \
               NODE_ENV=production \
               SESSION_SECRET=${{ secrets.SESSION_SECRET }} \
-              DATABASE_URL=${{ secrets.DATABASE_URL }}
+              DATABASE_URL=${{ secrets.DATABASE_URL }} \
+              BETTER_AUTH_URL=https://zerolag.klonos.app

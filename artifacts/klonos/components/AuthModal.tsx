@@ -294,6 +294,7 @@ export function AuthModal({ visible, onClose, onSuccess }: AuthModalProps) {
                 </TouchableOpacity>
               </View>
 
+
               <View style={[styles.socialGrid, { marginTop: 12 }]}>
                 <TouchableOpacity
                   style={[styles.socialBtn, { flex: 1, marginRight: 0 }]}
