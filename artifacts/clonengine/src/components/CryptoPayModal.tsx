@@ -49,7 +49,7 @@ function shortAddr(addr: string): string {
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Chain    = "sol" | "eth";
+type Chain    = "sol" | "eth" | "paypal";
 type TxStatus = "idle" | "connecting" | "sending" | "verifying" | "success" | "error";
 type ActivationStatus = "pending" | "verified" | "email-fallback";
 
@@ -236,7 +236,34 @@ export function CryptoPayModal({ open, plan, onClose }: Props) {
 
   if (!open) return null;
 
+
+  useEffect(() => {
+    if (open && chain === "paypal" && (window as any).paypal) {
+      setTimeout(() => {
+        const container = document.getElementById("paypal-button-container");
+        if (container && !container.innerHTML.includes('iframe')) {
+          container.innerHTML = "";
+          let planId = "P-17M15335A8501272JLXLLNKI"; // Mock ID
+          if (plan === "Pro") planId = "P-YOUR_PRO_PLAN_ID";
+          if (plan === "Drosophila") planId = "P-YOUR_DROSOPHILA_ID";
+          if (plan === "Enterprise") planId = "P-YOUR_ENTERPRISE_ID";
+
+          (window as any).paypal.Buttons({
+            createSubscription: function(data: any, actions: any) {
+              return actions.subscription.create({ 'plan_id': planId });
+            },
+            onApprove: function(data: any, actions: any) {
+              alert('You have successfully subscribed to ' + data.subscriptionID);
+              setStatus("success");
+            }
+          }).render('#paypal-button-container');
+        }
+      }, 100);
+    }
+  }, [open, chain, plan]);
+
   const isSol    = chain === "sol";
+  const isPayPal = chain === "paypal";
   const wallet   = isSol ? SOL_WALLET : ETH_WALLET;
   const qrData   = isSol ? solanaPayURI(approxSol, plan) : `ethereum:${ETH_WALLET}`;
   const connAddr = isSol ? solAddr : ethAddr;
@@ -272,13 +299,41 @@ export function CryptoPayModal({ open, plan, onClose }: Props) {
             Solana (SOL)
           </button>
           <button
-            className={`cpay-tab${!isSol ? " active" : ""}`}
+            className={`cpay-tab${chain === "eth" ? " active" : ""}`}
             onClick={() => { setChain("eth"); setStatus("idle"); setErrMsg(""); }}
           >
             <svg viewBox="0 0 32 32" width="14" height="14" fill="currentColor">
               <path d="M16 3.5L7 16.4l9 5.3 9-5.3L16 3.5zm0 3.7l6.2 8.7-6.2 3.6-6.2-3.6 6.2-8.7zm0 14.5L7 18.2l9 10.3 9-10.3-9 3.5z"/>
             </svg>
-            Ethereum (ETH)
+            Ethereum
+          </button>
+          <button
+            className={`cpay-tab${chain === "paypal" ? " active" : ""}`}
+            onClick={() => { setChain("paypal"); setStatus("idle"); setErrMsg(""); }}
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+              <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106z"/>
+            </svg>
+            PayPal
+          </button>
+          <button
+            className={`cpay-tab`}
+            style={{ marginLeft: 8 }}
+            onClick={() => { window.open(`https://paypal.me/klonosai/${price.usd}`, "_blank"); }}
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+              <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106z"/>
+            </svg>
+            PayPal Checkout
+          </button>
+          <button
+            className={`cpay-tab`}
+            onClick={() => { window.open(`https://paypal.me/klonosai/${price.usd}`, "_blank"); }}
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+              <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106z"/>
+            </svg>
+            PayPal Checkout
           </button>
         </div>
 
@@ -327,7 +382,12 @@ export function CryptoPayModal({ open, plan, onClose }: Props) {
         )}
 
         {/* ── Main body (idle / connecting / sending) ── */}
-        {status !== "verifying" && status !== "success" && (
+        {(status !== "verifying" && status !== "success") && isPayPal ? (
+          <div className="cpay-body" style={{ display: "block", textAlign: "center", padding: "20px" }}>
+            <div id="paypal-button-container"></div>
+            <p style={{ marginTop: "15px", fontSize: "12px", color: "var(--muted)" }}>Securely subscribe with PayPal or Credit/Debit Card.</p>
+          </div>
+        ) : (status !== "verifying" && status !== "success") && (
           <div className="cpay-body">
             {/* ── QR code ── */}
             <div className="cpay-qr-wrap">

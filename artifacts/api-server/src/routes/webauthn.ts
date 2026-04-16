@@ -16,7 +16,7 @@ import {
   type VerifyRegistrationResponseOpts,
   type VerifyAuthenticationResponseOpts,
 } from "@simplewebauthn/server";
-import type { AuthenticatorTransportFuture } from "@simplewebauthn/types";
+import type { AuthenticatorTransportFuture } from "@simplewebauthn/server";
 import type { Request, Response } from "express";
 
 // ── Config ─────────────────────────────────────────────────────────────────────
@@ -38,7 +38,7 @@ type StoredCredential = {
   createdAt:    number;
 };
 
-const usersByName = new Map<string, { id: Uint8Array; username: string }>();
+const usersByName = new Map<string, { id: string; username: string }>();
 const credsByUser = new Map<string, StoredCredential[]>();
 const allCreds    = new Map<string, StoredCredential>();
 
@@ -89,7 +89,7 @@ router.post("/register-options", async (req: Request, res: Response) => {
   }
 
   if (!usersByName.has(name)) {
-    usersByName.set(name, { id: userIdFromName(name), username: name });
+    usersByName.set(name, { id: Buffer.from(userIdFromName(name)).toString("base64url"), username: name });
   }
   const user = usersByName.get(name)!;
 
@@ -102,7 +102,7 @@ router.post("/register-options", async (req: Request, res: Response) => {
     rpName: RP_NAME,
     rpID: RP_ID,
     userName: user.username,
-    userID: user.id,
+    userID: new Uint8Array(Buffer.from(user.id, "base64url")) as any,
     attestationType: "none",
     excludeCredentials: existingCreds,
     authenticatorSelection: {
@@ -217,7 +217,7 @@ router.post("/login-verify", async (req: Request, res: Response) => {
       expectedOrigin:    RP_ORIGIN ?? req.headers["origin"] as string,
       credential: {
         id:        stored.id,
-        publicKey: stored.publicKey,
+        publicKey: stored.publicKey as any,
         counter:   stored.counter,
         transports: stored.transports,
       },

@@ -27,7 +27,8 @@ function exitWithError(message) {
   if (metroProcess) {
     metroProcess.kill();
   }
-  process.exit(1);
+  process.exitCode = 1;
+  return "localhost";
 }
 
 function setupSignalHandlers() {
@@ -70,7 +71,8 @@ function getDeploymentDomain() {
   console.error(
     "ERROR: No deployment domain found. Set REPLIT_INTERNAL_APP_DOMAIN, REPLIT_DEV_DOMAIN, or EXPO_PUBLIC_DOMAIN",
   );
-  process.exit(1);
+  process.exitCode = 1;
+  return "localhost";
 }
 
 function prepareDirectories(timestamp) {
@@ -188,7 +190,8 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
   }
 
   console.error("Metro timeout");
-  process.exit(1);
+  process.exitCode = 1;
+  return "localhost";
 }
 
 async function downloadFile(url, outputPath) {
@@ -569,5 +572,6 @@ main().catch((error) => {
   if (metroProcess) {
     metroProcess.kill();
   }
-  process.exit(1);
+  process.exitCode = 1;
+  return "localhost";
 });

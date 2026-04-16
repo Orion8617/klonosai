@@ -57,6 +57,7 @@
   },
   "dependencies": {
     "@expo-google-fonts/space-mono": "^0.4.2",
-    "@klonos/callosum": "workspace:*"
+    "@klonos/callosum": "workspace:*",
+    "lucide-react-native": "^1.8.0"
   }
 }

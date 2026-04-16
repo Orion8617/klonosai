@@ -23,18 +23,27 @@ export default function App() {
   const openCrypto = (plan: string) => (e: React.MouseEvent) => { e.preventDefault(); setCryptoPlan(plan); setCryptoOpen(true); };
 
   useEffect(() => {
-    const cur   = document.createElement("div"); cur.id = "cursor";
-    cur.innerHTML = `<svg viewBox="0 0 12 12" width="12" height="12"><polygon points="6,0 11,9 6,7 1,9" fill="#ff7a1a"/></svg>`;
-    const trail = document.createElement("div"); trail.id = "cursor-trail";
-    document.body.appendChild(cur); document.body.appendChild(trail);
-    let mx = 0, my = 0;
-    const mm = (e: MouseEvent) => {
-      mx = e.clientX; my = e.clientY;
-      cur.style.left = mx + "px"; cur.style.top = my + "px";
-      setTimeout(() => { trail.style.left = mx + "px"; trail.style.top = my + "px"; }, 80);
-    };
-    document.addEventListener("mousemove", mm);
-    return () => { cur.remove(); trail.remove(); document.removeEventListener("mousemove", mm); };
+    if (cryptoOpen && (window as any).paypal) {
+      document.getElementById("paypal-button-container")!.innerHTML = "";
+      let planId = "P-17M15335A8501272JLXLLNKI"; // Mock ID
+      if (cryptoPlan === "Pro") planId = "YOUR_PRO_PLAN_ID";
+      if (cryptoPlan === "Drosophila") planId = "YOUR_DRO_PLAN_ID";
+
+      (window as any).paypal.Buttons({
+        createSubscription: function(data: any, actions: any) {
+          return actions.subscription.create({ 'plan_id': planId });
+        },
+        onApprove: function(data: any, actions: any) {
+          alert('You have successfully subscribed to ' + data.subscriptionID);
+          setCryptoOpen(false);
+        }
+      }).render('#paypal-button-container');
+    }
+  }, [cryptoOpen, cryptoPlan]);
+
+
+  useEffect(() => {
+
   }, []);
 
   return (
