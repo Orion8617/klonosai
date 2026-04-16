@@ -1,12 +1,14 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   Animated,
   Platform,
 } from "react-native";
+import { SearchIcon } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 
@@ -21,6 +23,7 @@ export function BrowserHeader({ snnActive, gammaBurst, onToggleSNN }: BrowserHea
   const insets = useSafeAreaInsets();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const gammaFlash = useRef(new Animated.Value(0)).current;
+  const [searchQuery, setSearchQuery] = useState("");
 
   const useNative = Platform.OS !== "web";
 
