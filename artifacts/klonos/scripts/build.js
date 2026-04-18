@@ -177,14 +177,16 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
     });
   }
 
-  for (let i = 0; i < 60; i++) {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+  const pollInterval = 200; // 200ms
+  const maxAttempts = (60 * 1000) / pollInterval;
 
+  for (let i = 0; i < maxAttempts; i++) {
     const healthy = await checkMetroHealth();
     if (healthy) {
       console.log("Metro ready");
       return;
     }
+    await new Promise((resolve) => setTimeout(resolve, pollInterval));
   }
 
   console.error("Metro timeout");
