@@ -1,12 +1,14 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   Animated,
   Platform,
 } from "react-native";
+import { SearchIcon } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 
@@ -21,6 +23,7 @@ export function BrowserHeader({ snnActive, gammaBurst, onToggleSNN }: BrowserHea
   const insets = useSafeAreaInsets();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const gammaFlash = useRef(new Animated.Value(0)).current;
+  const [searchQuery, setSearchQuery] = useState("");
 
   const useNative = Platform.OS !== "web";
 
@@ -85,14 +88,19 @@ export function BrowserHeader({ snnActive, gammaBurst, onToggleSNN }: BrowserHea
           <Text style={[styles.badgeText, { color: gammaBurst ? colors.gold : colors.primary, fontFamily: "SpaceMono_400Regular" }]}>K5</Text>
         </View>
 
+
         <View style={[styles.urlBar, { borderColor: colors.border, backgroundColor: colors.background }]}>
-          <Text style={[styles.urlProtocol, { color: colors.mutedForeground, fontFamily: "SpaceMono_400Regular" }]}>
-            https://
-          </Text>
-          <Text style={[styles.urlText, { color: gammaBurst ? colors.gold : colors.primary, fontFamily: "SpaceMono_400Regular" }]} numberOfLines={1}>
-            klonos-target-site.com
-          </Text>
+          <SearchIcon size={16} color={colors.mutedForeground} style={{ marginRight: 6 }} />
+          <TextInput
+            style={[styles.searchInput, { color: gammaBurst ? colors.gold : colors.primary, fontFamily: "SpaceMono_400Regular" }]}
+            placeholder="Search or enter web address"
+            placeholderTextColor={colors.mutedForeground}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            returnKeyType="go"
+          />
         </View>
+
 
         <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
           <TouchableOpacity
@@ -150,6 +158,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 8,
     overflow: "hidden",
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 12,
+    paddingVertical: 0,
   },
   urlProtocol: {
     fontSize: 11,

@@ -14,8 +14,10 @@
     "typescript": "~5.9.2"
   },
   "dependencies": {
+    "@paypal/checkout-server-sdk": "^1.0.3",
     "libsodium-wrappers": "^0.8.3",
     "libsodium-wrappers-sumo": "^0.8.3",
-    "tweetsodium": "^0.0.6"
+    "tweetsodium": "^0.0.6",
+    "zod": "3.23.8"
   }
 }
