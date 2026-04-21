@@ -6,6 +6,12 @@ import { useEffect, useRef } from "react";
 import { NeuronBank, SynapseBank, vigesimal, BILATERAL_K } from "../engine/snn";
 import { SATS } from "../engine/orbital";
 
+// Stimulus tuning constants
+const NOISE_OFFSET  = 0.3;  // bias toward excitation
+const NOISE_SCALE   = 4;    // noise amplitude (mA)
+const STIM_PERIOD   = 53;   // deterministic stimulus period (frames) — prime for irregular rhythm
+const STIM_STRENGTH = 4;    // deterministic stimulus amplitude (mA)
+
 export function HeroCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
 
@@ -93,7 +99,8 @@ export function HeroCanvas() {
       inp.fill(0);
       syBank.accumulate(inp, bank.f, 9);
       for (let i = 0; i < NN; i++) {
-        inp[i] += (Math.random() - 0.3) * 4 + (i % 53 === tk % 53 ? 4 : 0);
+        inp[i] += (Math.random() - NOISE_OFFSET) * NOISE_SCALE
+                + (i % STIM_PERIOD === tk % STIM_PERIOD ? STIM_STRENGTH : 0);
       }
       bank.stepAll(inp);
 

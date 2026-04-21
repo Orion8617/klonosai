@@ -1,13 +1,22 @@
 // ─── Layer 4: SciCanvas — C. elegans SNN Hexagonal Visualization ─────────────
 // Inputs:  engine/snn (NeuronBank, SynapseBank, pascalImp, lodR, vigesimal,
-//                      PASCAL_CULL, BILATERAL_K, THETA_PERIOD)
+//                      PASCAL_CULL, BILATERAL_K, THETA_PERIOD, LANE_*)
 // Output:  <canvas id="sci-canvas"> + spike count callback
 import { useEffect, useRef } from "react";
 import {
   NeuronBank, SynapseBank,
   pascalImp, lodR, vigesimal,
   PASCAL_CULL, BILATERAL_K, THETA_PERIOD,
+  LANE_ORANGE, LANE_CYAN,
 } from "../engine/snn";
+
+// Stimulus tuning constants
+const NOISE_OFFSET    = 0.3;   // bias toward excitation
+const NOISE_SCALE     = 4;     // noise amplitude (mA)
+const STIM_PERIOD     = 17;    // deterministic stimulus period (frames)
+const STIM_STRENGTH   = 5;     // deterministic stimulus amplitude (mA)
+const SCHUMANN_PERIOD = 3;     // fraction of neurons boosted on Schumann pulse
+const SCHUMANN_BOOST  = 6;     // Schumann pulse amplitude (mA)
 
 export function SciCanvas({ onSpk }: { onSpk: (n: number) => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -30,7 +39,7 @@ export function SciCanvas({ onSpk }: { onSpk: (n: number) => void }) {
     for (let i = 0; i < NN; i++) {
       bank.v[i] = -65 + (Math.random() - 0.5) * 15;
       bank.u[i] = -13;
-      bank.l[i] = (i % cols) < (cols / 2) ? 1 : 0;  // left cols = orange, right = cyan
+      bank.l[i] = (i % cols) < (cols / 2) ? LANE_ORANGE : LANE_CYAN;
     }
 
     // Build SynapseBank
@@ -111,7 +120,9 @@ export function SciCanvas({ onSpk }: { onSpk: (n: number) => void }) {
       inp.fill(0);
       syBank.accumulate(inp, bank.f, 9);
       for (let i = 0; i < NN; i++) {
-        inp[i] += (Math.random() - 0.3) * 4 + (i % 17 === tk % 17 ? 5 : 0) + (sf2 && i % 3 === 0 ? 6 : 0);
+        inp[i] += (Math.random() - NOISE_OFFSET) * NOISE_SCALE
+                + (i % STIM_PERIOD === tk % STIM_PERIOD ? STIM_STRENGTH : 0)
+                + (sf2 && i % SCHUMANN_PERIOD === 0 ? SCHUMANN_BOOST : 0);
       }
       spkAcc += bank.stepAll(inp);
 

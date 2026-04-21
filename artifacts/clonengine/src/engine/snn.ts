@@ -18,6 +18,12 @@ export const P4 = [1/16, 4/16, 6/16, 4/16, 1/16] as const;
 export const PASCAL_CULL  = 0.06;  // Stage 1: discard neurons with importance < 6%
 export const BILATERAL_K  = 0.30;  // §10: gap-junction coupling factor
 export const THETA_PERIOD = 10;    // Stage 4: Theta tick every 10 Gamma frames ≈ 6Hz
+// Izhikevich spike thresholds — orange lane fires earlier (lower threshold)
+export const SPIKE_THRESHOLD_ORANGE = 25.5;  // l=1: orange hemisphere
+export const SPIKE_THRESHOLD_CYAN   = 34.5;  // l=0: cyan hemisphere
+// Lane identifiers for Uint8Array storage
+export const LANE_ORANGE = 1;
+export const LANE_CYAN   = 0;
 
 // Izhikevich RK2 — one neuron step, returns true on spike
 export function izhi(n: Neuron, I: number): boolean {
@@ -92,7 +98,7 @@ export class NeuronBank {
         continue;
       }
       // RK2 Izhikevich — half-step then full-step
-      const th = l[i] ? 25.5 : 34.5;
+      const th = l[i] ? SPIKE_THRESHOLD_ORANGE : SPIKE_THRESHOLD_CYAN;
       const v0 = v[i], u0 = u[i];
       const v1 = v0 + 0.5 * (0.04 * v0 * v0 + 5 * v0 + 140 - u0 + I);
       const u1 = u0 + 0.5 * 0.02 * (0.2 * v0 - u0);
