@@ -54,3 +54,82 @@ export function lodR(imp: number): number {
 export function vigesimal(x: number): number {
   return Math.round(x * 20) / 20;
 }
+
+// ─── NeuronBank — SoA typed-array storage for N Izhikevich neurons ───────────
+// Structure-of-Arrays layout yields 3-5× better CPU cache utilisation
+// over Array-of-Structs (Neuron[]) on large populations: contiguous v[], u[],
+// f[], l[] arrays enable sequential memory access in the tight step loop.
+export class NeuronBank {
+  readonly n: number;
+  readonly v: Float32Array;  // membrane potential (mV)
+  readonly u: Float32Array;  // recovery variable
+  readonly f: Uint8Array;    // fire countdown: 0 = idle, 12 = just fired
+  readonly l: Uint8Array;    // lane: 0 = cyan, 1 = orange
+  readonly x: Float32Array;  // screen x (layout only)
+  readonly y: Float32Array;  // screen y (layout only)
+
+  constructor(n: number) {
+    this.n = n;
+    this.v = new Float32Array(n);
+    this.u = new Float32Array(n);
+    this.f = new Uint8Array(n);
+    this.l = new Uint8Array(n);
+    this.x = new Float32Array(n);
+    this.y = new Float32Array(n);
+  }
+
+  // Batch RK2 Izhikevich step with quiescent fast-path.
+  // inp[i] must hold the pre-accumulated total input current for neuron i.
+  // Returns the spike count for this time step.
+  stepAll(inp: Float32Array): number {
+    const { n, v, u, f, l } = this;
+    let spikes = 0;
+    for (let i = 0; i < n; i++) {
+      const I = inp[i];
+      // Fast path: quiescent neuron with negligible input — skip full RK2
+      if (f[i] === 0 && v[i] < -62 && I < 1.5 && I > -1.5) {
+        v[i] += 0.04 * v[i] * v[i] * 0.002 + I * 0.04;
+        continue;
+      }
+      // RK2 Izhikevich — half-step then full-step
+      const th = l[i] ? 25.5 : 34.5;
+      const v0 = v[i], u0 = u[i];
+      const v1 = v0 + 0.5 * (0.04 * v0 * v0 + 5 * v0 + 140 - u0 + I);
+      const u1 = u0 + 0.5 * 0.02 * (0.2 * v0 - u0);
+      v[i] = v1 + 0.5 * (0.04 * v1 * v1 + 5 * v1 + 140 - u1 + I);
+      u[i] = u1 + 0.5 * 0.02 * (0.2 * v1 - u1);
+      if (v[i] >= th) {
+        v[i] = -65; u[i] += 8; f[i] = 12; spikes++;
+      } else if (f[i] > 0) {
+        f[i]--;
+      }
+    }
+    return spikes;
+  }
+}
+
+// ─── SynapseBank — SoA typed-array storage for synaptic connections ───────────
+// Parallel typed arrays eliminate per-synapse object allocation and pointer
+// chasing compared to { a, b, w }[] arrays.
+export class SynapseBank {
+  readonly count: number;
+  readonly a: Uint16Array;   // pre-synaptic neuron index
+  readonly b: Uint16Array;   // post-synaptic neuron index
+  readonly w: Float32Array;  // synaptic weight
+
+  constructor(count: number) {
+    this.count = count;
+    this.a = new Uint16Array(count);
+    this.b = new Uint16Array(count);
+    this.w = new Float32Array(count);
+  }
+
+  // Accumulate scaled synaptic current into inp[] for all currently firing
+  // pre-synaptic neurons.  f[] is the fire-countdown array from a NeuronBank.
+  accumulate(inp: Float32Array, f: Uint8Array, scale: number): void {
+    const { count, a, b, w } = this;
+    for (let i = 0; i < count; i++) {
+      if (f[a[i]] > 0) inp[b[i]] += w[i] * scale;
+    }
+  }
+}

@@ -44,6 +44,20 @@ export default defineConfig(async () => {
     build: {
       outDir: path.resolve(import.meta.dirname, "dist/public"),
       emptyOutDir: true,
+      // Target modern browsers — reduces transpilation overhead and bundle size
+      target: "es2022",
+      rollupOptions: {
+        output: {
+          // Split large vendor chunks for better long-term HTTP caching:
+          // each chunk is cached independently; only changed chunks are re-fetched.
+          manualChunks(id) {
+            if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) return "react";
+            if (id.includes("node_modules/@radix-ui")) return "radix";
+            if (id.includes("node_modules/@solana") || id.includes("node_modules/@phantom")) return "solana";
+            if (id.includes("node_modules/framer-motion")) return "motion";
+          },
+        },
+      },
     },
     server: {
       port,
